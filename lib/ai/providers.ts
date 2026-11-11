@@ -8,7 +8,7 @@ export function getProviderConfig(providerValue?: string): ProviderConfig {
     throw new Error("مزود الذكاء الاصطناعي غير معروف. اختر OpenAI أو Google أو Anthropic.");
   }
   const provider = requested as ProviderName;
-  if (provider === "google") return { provider, model: process.env.GOOGLE_MODEL || "gemini-2.5-flash", apiKey: process.env.GOOGLE_API_KEY || "" };
+  if (provider === "google") return { provider, model: process.env.GOOGLE_MODEL || "gemini-3.8-flash", apiKey: process.env.GOOGLE_API_KEY || "" };
   if (provider === "anthropic") return { provider, model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5", apiKey: process.env.ANTHROPIC_API_KEY || "" };
   return { provider, model: process.env.OPENAI_MODEL || "gpt-4o-mini", apiKey: process.env.OPENAI_API_KEY || "" };
 }
