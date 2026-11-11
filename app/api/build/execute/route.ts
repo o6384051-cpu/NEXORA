@@ -3,7 +3,7 @@ import { Sandbox } from "@vercel/sandbox";
 import { isAuthorized } from "@/lib/auth";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 type ProjectFile = { path?: unknown; content?: unknown };
 
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     sandbox = await Sandbox.create({
       image: "vercel/sandbox/node:24",
       resources: { vcpus: 1 },
-      timeout: 55_000,
+      timeout: 110_000,
       persistent: false,
       networkPolicy: "allow-all",
     });
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
       cmd: "npm",
       args: ["install", "--ignore-scripts", "--no-audit", "--no-fund", "--package-lock=false"],
       cwd: "/vercel/sandbox",
-      timeoutMs: 25_000,
+      timeoutMs: 45_000,
     });
     const installStdout = await install.stdout();
     const installStderr = await install.stderr();
