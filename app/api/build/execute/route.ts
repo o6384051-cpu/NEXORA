@@ -113,7 +113,7 @@ export async function POST(request: Request) {
     const build = await sandbox.runCommand({
       cmd: "npm",
       args: ["run", "build"],
-      cwd: "/vercel/sandbox",
+      cwd: sandbox.cwd,
       timeoutMs: 25_000,
     });
     const stdout = await build.stdout();
