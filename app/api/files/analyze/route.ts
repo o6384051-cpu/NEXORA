@@ -7,7 +7,7 @@ import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 
 export const runtime = "nodejs";
 
-const MAX_FILE_BYTES = 8 * 1024 * 1024;
+const MAX_FILE_BYTES = 4 * 1024 * 1024;
 const MAX_EXTRACTED_CHARS = 60_000;
 const TEXT_EXTENSIONS = /\.(txt|md|csv|json)$/i;
 
@@ -20,8 +20,8 @@ async function extractPdf(buffer: Buffer): Promise<string> {
   const task = getDocument({ data: new Uint8Array(buffer), useSystemFonts: true });
   const pdf = await task.promise;
   try {
-    if (pdf.numPages > 60) {
-      throw new Error("ملف PDF يتجاوز الحد المسموح وهو 60 صفحة.");
+    if (pdf.numPages > 40) {
+      throw new Error("ملف PDF يتجاوز الحد المسموح وهو 40 صفحة.");
     }
     const pages: string[] = [];
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
@@ -45,10 +45,10 @@ async function extractXlsx(buffer: Buffer): Promise<string> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer as never);
   const sections: string[] = [];
-  for (const sheet of workbook.worksheets.slice(0, 8)) {
+  for (const sheet of workbook.worksheets.slice(0, 5)) {
     const rows: string[] = [];
     sheet.eachRow({ includeEmpty: false }, (row) => {
-      if (rows.length >= 300) return;
+      if (rows.length >= 200) return;
       rows.push(row.values.slice(1, 41).map(csvCell).join(","));
     });
     sections.push("ورقة العمل: " + sheet.name + "\n" + rows.join("\n"));
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "الملف فارغ." }, { status: 400 });
   }
   if (file.size > MAX_FILE_BYTES) {
-    return NextResponse.json({ error: "الحد الأقصى لحجم الملف 8 ميجابايت." }, { status: 413 });
+    return NextResponse.json({ error: "الحد الأقصى لحجم الملف 4 ميجابايت." }, { status: 413 });
   }
 
   const extension = file.name.toLowerCase().split(".").pop() || "";
