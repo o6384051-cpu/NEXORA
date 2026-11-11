@@ -22,12 +22,14 @@ export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [response, setResponse] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [needsLogin, setNeedsLogin] = useState(false);
 
   async function handleSend() {
     const message = prompt.trim();
     if (!message || isLoading) return;
     setIsLoading(true);
     setResponse("");
+    setNeedsLogin(false);
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -35,6 +37,7 @@ export default function Home() {
         body: JSON.stringify({ message }),
       });
       const data: { reply?: string; error?: string } = await res.json();
+      if (res.status === 401) setNeedsLogin(true);
       if (!res.ok) throw new Error(data.error || "تعذر إكمال الطلب.");
       setResponse(data.reply || "لم يصل رد من مزود الذكاء الاصطناعي.");
     } catch (error) {
@@ -87,6 +90,7 @@ export default function Home() {
           <div className="response-box" role="status" aria-live="polite">
             <div className="response-title"><BrainCircuit size={19} /> <strong>رد NEXORA</strong></div>
             <p>{response}</p>
+            {needsLogin && <p><Link className="status" href="/login">سجّل دخول المسؤول لتفعيل الدردشة</Link></p>}
           </div>
         )}
         <div className="trust-note"><ShieldCheck size={14} /> لا يتم تنفيذ أي إجراء خارجي حساس دون صلاحية وموافقة.</div>
