@@ -12,7 +12,8 @@ export async function GET(request:Request) {
   for(const entry of due){
    const result=await runAgentTeam(entry.item.task);
    await command(["LREM","nexora:schedules","1",entry.raw]);
-   const status=result.executionStatus==="analysis_completed"?"analysis_completed":"partially_completed";\n   const history={id:entry.item.id,task:entry.item.task,completedAt:new Date().toISOString(),status,searchStatus:result.searchStatus,executionNote:result.executionNote,result};
+   const status=result.executionStatus==="analysis_completed"?"analysis_completed":"partially_completed";
+   const history={id:entry.item.id,task:entry.item.task,completedAt:new Date().toISOString(),status,searchStatus:result.searchStatus,executionNote:result.executionNote,result};
    await command(["LPUSH","nexora:schedule-history",JSON.stringify(history)]);
    if(entry.item.cadence==="daily"||entry.item.cadence==="weekly"){
     const next=new Date(entry.item.runAt); next.setDate(next.getDate()+(entry.item.cadence==="daily"?1:7));
