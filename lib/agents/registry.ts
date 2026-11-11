@@ -12,7 +12,6 @@ type SearchResult = { title: string; url: string; content: string; score: number
 type StepResult = { text: string; status: "completed" | "failed"; error?: string };
 
 async function runStep(
-  id: string,
   messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
   provider?: string,
 ): Promise<StepResult> {
@@ -49,28 +48,28 @@ async function researchWeb(task: string): Promise<{ answer: string; sources: Sea
 }
 
 export async function runAgentTeam(task: string, provider?: string) {
-  const plan = await runStep("planner", [
+  const plan = await runStep([
     { role: "system", content: agentRoles[0].instruction },
     { role: "user", content: task },
   ], provider);
 
   const webResearch = await researchWeb(task);
-  const research = await runStep("researcher", [
+  const research = await runStep([
     { role: "system", content: agentRoles[1].instruction + " لا تختلق أي مصدر أو معلومة. إذا كانت النتائج غير كافية فقل ذلك صراحة." },
     { role: "user", content: task + "\nخطة التخطيط:\n" + plan.text + "\nملخص محرك البحث:\n" + webResearch.answer + "\nالمصادر والنتائج:\n" + webResearch.sources.map((source, index) => "[" + index + "] " + source.title + " | " + source.url + "\n" + source.content).join("\n\n") },
   ], provider);
 
-  const engineering = await runStep("engineer", [
+  const engineering = await runStep([
     { role: "system", content: agentRoles[2].instruction },
     { role: "user", content: task + "\nالخطة:\n" + plan.text + "\nملاحظات البحث:\n" + research.text },
   ], provider);
 
-  const review = await runStep("reviewer", [
+  const review = await runStep([
     { role: "system", content: agentRoles[3].instruction },
     { role: "user", content: "راجع المخرجات التالية للمهمة: " + task + "\n" + engineering.text },
   ], provider);
 
-  const operator = await runStep("operator", [
+  const operator = await runStep([
     { role: "system", content: agentRoles[4].instruction + " لا تدّع إنشاء ملفات أو تعديل GitHub أو نشر تطبيق. هذه المرحلة تنفذ التحليل والتوصيات فقط." },
     { role: "user", content: "المهمة: " + task + "\nالخطة: " + plan.text + "\nالمخرجات الهندسية: " + engineering.text + "\nالمراجعة: " + review.text },
   ], provider);
