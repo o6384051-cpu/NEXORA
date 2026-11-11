@@ -9,7 +9,6 @@ export const runtime = "nodejs";
 
 const MAX_FILE_BYTES = 4 * 1024 * 1024;
 const MAX_EXTRACTED_CHARS = 60_000;
-const TEXT_EXTENSIONS = /\.(txt|md|csv|json)$/i;
 
 function csvCell(value: unknown): string {
   const text = value == null ? "" : String(value);
@@ -24,11 +23,14 @@ async function extractPdf(buffer: Buffer): Promise<string> {
       throw new Error("ملف PDF يتجاوز الحد المسموح وهو 40 صفحة.");
     }
     const pages: string[] = [];
+    let extractedLength = 0;
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
       const page = await pdf.getPage(pageNumber);
       const text = await page.getTextContent();
-      pages.push(text.items.map((item) => "str" in item ? item.str : "").join(" "));
-      if (pages.join("\n").length > MAX_EXTRACTED_CHARS) break;
+      const pageText = text.items.map((item) => "str" in item ? item.str : "").join(" ");
+      pages.push(pageText);
+      extractedLength += pageText.length;
+      if (extractedLength > MAX_EXTRACTED_CHARS) break;
     }
     return pages.join("\n\n");
   } finally {
@@ -49,7 +51,10 @@ async function extractXlsx(buffer: Buffer): Promise<string> {
     const rows: string[] = [];
     sheet.eachRow({ includeEmpty: false }, (row) => {
       if (rows.length >= 200) return;
-      rows.push(row.values.slice(1, 41).map(csvCell).join(","));
+      const cells = Array.from({ length: 40 }, (_, index) =>
+        csvCell(row.getCell(index + 1).value),
+      );
+      rows.push(cells.join(","));
     });
     sections.push("ورقة العمل: " + sheet.name + "\n" + rows.join("\n"));
   }
@@ -130,7 +135,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
-    if (message.includes("60 صفحة")) {
+    if (message.includes("40 صفحة")) {
       return NextResponse.json({ error: message }, { status: 413 });
     }
     return NextResponse.json(
