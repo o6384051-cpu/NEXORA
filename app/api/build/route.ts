@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isAuthorized } from "@/lib/auth";
 import { generateText } from "@/lib/ai/providers";
 export const runtime="nodejs";
 export async function POST(request:Request){
