@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { runAgentTeam } from "@/lib/agents/registry";
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 async function command(args: unknown[]) {
   const url = process.env.UPSTASH_REDIS_REST_URL;
