@@ -57,11 +57,16 @@ export async function GET(request: Request) {
   try {
     const raw = await redis(["HGETALL", KEY]);
     const records: MemoryRecord[] = [];
-    if (raw && typeof raw === "object" && !Array.isArray(raw)) {
-      for (const value of Object.values(raw as Record<string, unknown>)) {
-        const record = safeRecord(value);
-        if (record) records.push(record);
-      }
+    const values: unknown[] = [];
+    if (Array.isArray(raw)) {
+      // Upstash REST may return Redis HGETALL as alternating field/value pairs.
+      for (let index = 1; index < raw.length; index += 2) values.push(raw[index]);
+    } else if (raw && typeof raw === "object") {
+      values.push(...Object.values(raw as Record<string, unknown>));
+    }
+    for (const value of values) {
+      const record = safeRecord(value);
+      if (record) records.push(record);
     }
     records.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     return NextResponse.json({ memories: records, count: records.length, persistent: true });
