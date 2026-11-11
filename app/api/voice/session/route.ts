@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { isAuthorized } from "@/lib/auth";
 export const runtime="nodejs";
-export async function POST(){
+export async function POST(request:Request){
+ if(!(await isAuthorized(request))) return NextResponse.json({error:"سجّل الدخول أولاً."},{status:401});
  const key=process.env.OPENAI_API_KEY;
  if(!key) return NextResponse.json({error:"المحادثة الصوتية المباشرة تحتاج OPENAI_API_KEY."},{status:503});
  const response=await fetch("https://api.openai.com/v1/realtime/client_secrets",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},body:JSON.stringify({session:{type:"realtime",model:process.env.OPENAI_REALTIME_MODEL||"gpt-realtime",audio:{output:{voice:"marin"}}})},signal:AbortSignal.timeout(20000)});
