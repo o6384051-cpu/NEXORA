@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";\nimport { isAuthorized } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { isAuthorized } from "@/lib/auth";
 export const runtime="nodejs";
 export async function POST(request:Request) {
- const actionSecret=process.env.NEXORA_ACTION_SECRET;
- if(!actionSecret || request.headers.get("authorization")!=="Bearer "+actionSecret) return NextResponse.json({error:"يتطلب هذا الإجراء جلسة مسؤول موثقة."},{status:401});
+ if(!(await isAuthorized(request))) return NextResponse.json({error:"سجّل الدخول أولاً من صفحة المسؤول."},{status:401});
  const token=process.env.VERCEL_TOKEN;
- if(!token) return NextResponse.json({error:"النشر التلقائي يحتاج VERCEL_TOKEN وربط مستودع GitHub ومشروع Vercel."},{status:503});
+ if(!token) return NextResponse.json({error:"النشر التلقائي يحتاج VERCEL_TOKEN وربط مستودع GitHub."},{status:503});
  const body=await request.json().catch(()=>({})) as {name?:string;repo?:string;ref?:string};
  if(!body.name||!body.repo) return NextResponse.json({error:"حدد اسم المشروع ومستودع GitHub بصيغة owner/repo."},{status:400});
  const [owner,repo]=body.repo.split("/");
