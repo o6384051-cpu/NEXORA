@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";\nimport { isAuthorized } from "@/lib/auth";
 export const runtime="nodejs";
 export async function POST(request:Request) {
  const actionSecret=process.env.NEXORA_ACTION_SECRET;
