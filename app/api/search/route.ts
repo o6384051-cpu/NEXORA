@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { isAuthorized } from "@/lib/auth";
 export const runtime="nodejs";
 export async function POST(request:Request) {
+ if(!(await isAuthorized(request))) return NextResponse.json({error:"سجّل الدخول أولاً من صفحة المسؤول."},{status:401});
  const body=await request.json().catch(()=>({})) as {query?:unknown};
  if(typeof body.query!=="string" || !body.query.trim()) return NextResponse.json({error:"أدخل عبارة البحث."},{status:400});
  const key=process.env.TAVILY_API_KEY;
