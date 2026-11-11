@@ -69,7 +69,7 @@ export async function POST(request: Request) {
       resources: { vcpus: 1 },
       timeout: 55_000,
       persistent: false,
-      networkPolicy: "allow-all",
+      networkPolicy: { allow: ["registry.npmjs.org", "*.npmjs.org"] },
     });
 
     await sandbox.writeFiles(files.map((file) => ({ path: file.path, content: file.content })));
