@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 export const runtime="nodejs";
 export async function POST(request:Request) {
+ const actionSecret=process.env.NEXORA_ACTION_SECRET;
+ if(!actionSecret || request.headers.get("authorization")!=="Bearer "+actionSecret) return NextResponse.json({error:"يتطلب هذا الإجراء جلسة مسؤول موثقة."},{status:401});
  const token=process.env.VERCEL_TOKEN;
  if(!token) return NextResponse.json({error:"النشر التلقائي يحتاج VERCEL_TOKEN وربط مستودع GitHub ومشروع Vercel."},{status:503});
  const body=await request.json().catch(()=>({})) as {name?:string;repo?:string;ref?:string};
