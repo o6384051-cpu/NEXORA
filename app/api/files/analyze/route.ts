@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { isAuthorized } from "@/lib/auth";
 import { generateText } from "@/lib/ai/providers";
 export const runtime="nodejs";
 export async function POST(request:Request) {
+ if(!(await isAuthorized(request))) return NextResponse.json({error:"سجّل الدخول أولاً من صفحة المسؤول."},{status:401});
  const form=await request.formData().catch(()=>null);
  const file=form?.get("file");
  if(!(file instanceof File)) return NextResponse.json({error:"أرفق ملفاً نصياً للتحليل."},{status:400});
