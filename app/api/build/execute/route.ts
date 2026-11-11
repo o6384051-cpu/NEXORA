@@ -23,8 +23,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "سجّل الدخول أولاً من صفحة المسؤول." }, { status: 401 });
   }
 
-  const body = await request.json().catch(() => ({})) as { files?: ProjectFile[] };
-  if (!Array.isArray(body.files) || body.files.length < 1 || body.files.length > 25) {
+  const rawBody = await request.text();
+  if (Buffer.byteLength(rawBody, "utf8") > 750_000) {
+    return NextResponse.json({ error: "حجم الطلب أكبر من الحد المسموح." }, { status: 413 });
+  }
+
+  let body: { files?: ProjectFile[] };
+  try {
+    body = JSON.parse(rawBody) as { files?: ProjectFile[] };
+  } catch {
+    return NextResponse.json({ error: "صيغة الطلب غير صالحة." }, { status: 400 });
+  }
+
+  if (!body || typeof body !== "object" || !Array.isArray(body.files) || body.files.length < 1 || body.files.length > 25) {
     return NextResponse.json({ error: "أرسل من 1 إلى 25 ملفاً للمشروع." }, { status: 400 });
   }
 
@@ -33,7 +44,7 @@ export async function POST(request: Request) {
   let totalBytes = 0;
 
   for (const item of body.files) {
-    if (typeof item.path !== "string" || typeof item.content !== "string" || !validPath(item.path) || seen.has(item.path)) {
+    if (!item || typeof item !== "object" || typeof item.path !== "string" || typeof item.content !== "string" || !validPath(item.path) || seen.has(item.path)) {
       return NextResponse.json({ error: "يوجد مسار غير صالح أو ملف مكرر." }, { status: 400 });
     }
     const content = Buffer.from(item.content, "utf8");
