@@ -17,11 +17,11 @@ export async function POST(request:Request){
  if(!(await isAuthorized(request)))return NextResponse.json({error:"سجّل الدخول أولاً."},{status:401});
  try{
   const body=await request.json() as {repo?:string;name?:string;files?:Array<{path?:string;content?:string}>};
-  if(!body.repo||!/^[\\w.-]+\\/[\\w.-]+$/.test(body.repo))return NextResponse.json({error:"اكتب المستودع بصيغة owner/repo."},{status:400});
+  if(!body.repo||!/^[\w.-]+\/[\w.-]+$/.test(body.repo))return NextResponse.json({error:"اكتب المستودع بصيغة owner/repo."},{status:400});
   if(!Array.isArray(body.files)||body.files.length<1||body.files.length>25)return NextResponse.json({error:"عدد الملفات يجب أن يكون بين 1 و25."},{status:400});
   let total=0;
   for(const file of body.files){
-   if(!file.path||typeof file.content!=="string"||file.path.startsWith("/")||file.path.split("/").includes("..")||file.path.includes("\\\\")||file.path.startsWith(".git/"))return NextResponse.json({error:"توجد بيانات ملف أو مسار غير صالح."},{status:400});
+   if(!file.path||typeof file.content!=="string"||file.path.startsWith("/")||file.path.split("/").includes("..")||file.path.includes("\\")||file.path.startsWith(".git/"))return NextResponse.json({error:"توجد بيانات ملف أو مسار غير صالح."},{status:400});
    total+=Buffer.byteLength(file.content,"utf8");
   }
   if(total>500_000)return NextResponse.json({error:"حجم الملفات يتجاوز 500 كيلوبايت."},{status:413});
