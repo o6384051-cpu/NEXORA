@@ -32,7 +32,7 @@ async function researchWeb(task: string): Promise<{ answer: string; sources: Sea
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ api_key: key, query: task, search_depth: "advanced", max_results: 6, include_answer: true }),
-      signal: AbortSignal.timeout(25000),
+      signal: AbortSignal.timeout(9000),
       cache: "no-store",
     });
     const data = await response.json().catch(() => null) as { answer?: string; results?: Array<{ title?: string; url?: string; content?: string; score?: number }> } | null;
@@ -48,12 +48,13 @@ async function researchWeb(task: string): Promise<{ answer: string; sources: Sea
 }
 
 export async function runAgentTeam(task: string, provider?: string) {
-  const plan = await runStep([
-    { role: "system", content: agentRoles[0].instruction },
-    { role: "user", content: task },
-  ], provider);
-
-  const webResearch = await researchWeb(task);
+  const [plan, webResearch] = await Promise.all([
+    runStep([
+      { role: "system", content: agentRoles[0].instruction },
+      { role: "user", content: task },
+    ], provider),
+    researchWeb(task),
+  ]);
   const research = await runStep([
     { role: "system", content: agentRoles[1].instruction + " لا تختلق أي مصدر أو معلومة. إذا كانت النتائج غير كافية فقل ذلك صراحة." },
     { role: "user", content: task + "\nخطة التخطيط:\n" + plan.text + "\nملخص محرك البحث:\n" + webResearch.answer + "\nالمصادر والنتائج:\n" + webResearch.sources.map((source, index) => "[" + index + "] " + source.title + " | " + source.url + "\n" + source.content).join("\n\n") },
