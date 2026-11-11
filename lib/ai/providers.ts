@@ -1,6 +1,13 @@
 export type ProviderName = "openai" | "google" | "anthropic";
 export type ProviderConfig = { provider: ProviderName; model: string; apiKey: string };
 
+type ProviderResponse = {
+  error?: { message?: string; status?: string };
+  message?: string;
+  content?: Array<{ text?: string }>;
+  choices?: Array<{ message?: { content?: string } }>;
+};
+
 export function getProviderConfig(providerValue?: string): ProviderConfig {
   const provider = (providerValue || process.env.AI_PROVIDER || "openai") as ProviderName;
   if (provider === "google") return { provider, model: process.env.GOOGLE_MODEL || "gemini-2.5-flash", apiKey: process.env.GOOGLE_API_KEY || "" };
@@ -8,13 +15,13 @@ export function getProviderConfig(providerValue?: string): ProviderConfig {
   return { provider: "openai", model: process.env.OPENAI_MODEL || "gpt-4o-mini", apiKey: process.env.OPENAI_API_KEY || "" };
 }
 
-async function readProviderResponse(response: Response, provider: ProviderName): Promise<any> {
+async function readProviderResponse(response: Response, provider: ProviderName): Promise<ProviderResponse> {
   const raw = await response.text();
-  let data: any = {};
-  try { data = raw ? JSON.parse(raw) : {}; } catch { data = {}; }
+  let data: ProviderResponse = {};
+  try { data = raw ? JSON.parse(raw) as ProviderResponse : {}; } catch { data = {}; }
 
   if (!response.ok) {
-    const apiMessage = data?.error?.message || data?.message || data?.error?.status || "";
+    const apiMessage = data.error?.message || data.message || data.error?.status || "";
     const safeMessage = String(apiMessage || raw || "لم يرسل المزود تفاصيل إضافية.")
       .replace(/AIza[0-9A-Za-z_-]{20,}/g, "[مفتاح مخفي]")
       .slice(0, 500);
@@ -37,7 +44,7 @@ export async function generateText(messages: Array<{role:"system"|"user"|"assist
       cache:"no-store"
     });
     const data = await readProviderResponse(response, config.provider);
-    return String(data?.content?.map((x:{text?:string})=>x.text||"").join("") || "");
+    return String(data.content?.map((x)=>x.text||"").join("") || "");
   }
 
   const base = config.provider === "google"
@@ -51,7 +58,7 @@ export async function generateText(messages: Array<{role:"system"|"user"|"assist
     cache:"no-store"
   });
   const data = await readProviderResponse(response, config.provider);
-  const reply = data?.choices?.[0]?.message?.content;
+  const reply = data.choices?.[0]?.message?.content;
   if (typeof reply !== "string" || !reply.trim()) {
     throw new Error(`استجاب مزود ${config.provider} دون نص. تحقق من اسم النموذج وصلاحية المفتاح.`);
   }
