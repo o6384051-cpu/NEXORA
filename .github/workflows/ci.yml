@@ -1,7 +1,7 @@
 name: NEXORA checks
 
 concurrency:
-  group: nexora-ci-${{ github.ref }}
+  group: nexora-ci-${{ github.event.pull_request.head.ref || github.ref }}
   cancel-in-progress: true
 
 on:
