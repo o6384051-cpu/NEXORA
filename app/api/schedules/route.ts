@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";\nimport { isAuthorized } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { isAuthorized } from "@/lib/auth";
 const redis=()=>({url:process.env.UPSTASH_REDIS_REST_URL,token:process.env.UPSTASH_REDIS_REST_TOKEN});
 async function command(args:unknown[]) { const {url,token}=redis(); if(!url||!token) throw new Error("المهام المجدولة تحتاج إعداد UPSTASH_REDIS_REST_URL وUPSTASH_REDIS_REST_TOKEN."); const r=await fetch(url,{method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify(args),cache:"no-store"}); const d=await r.json(); if(!r.ok||d.error) throw new Error(d.error||"تعذر الوصول إلى مخزن المهام."); return d.result; }
 export async function GET(request:Request) { if(!(await isAuthorized(request))) return NextResponse.json({error:"سجّل الدخول أولاً."},{status:401}); try { const keys=await command(["LRANGE","nexora:schedules","0","99"]) as string[]; return NextResponse.json({schedules:(keys||[]).map(x=>JSON.parse(x))}); } catch(e) { return NextResponse.json({error:e instanceof Error?e.message:"تعذر قراءة المهام."},{status:503}); } }
