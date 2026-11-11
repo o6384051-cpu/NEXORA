@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { isAuthorized } from "@/lib/auth";
 import { generateText } from "@/lib/ai/providers";
 export const runtime = "nodejs";
 type ChatRequest = { message?: unknown; provider?: string };
 export async function POST(request: Request) {
+ if(!(await isAuthorized(request))) return NextResponse.json({error:"سجّل الدخول أولاً من صفحة المسؤول."},{status:401});
  let body: ChatRequest;
  try { body=(await request.json()) as ChatRequest; } catch { return NextResponse.json({error:"صيغة الطلب غير صحيحة."},{status:400}); }
  if(typeof body.message!=="string"||!body.message.trim()) return NextResponse.json({error:"اكتب رسالة نصية أولاً."},{status:400});
