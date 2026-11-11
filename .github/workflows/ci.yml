@@ -1,8 +1,12 @@
 name: NEXORA checks
 
+concurrency:
+  group: nexora-ci-${{ github.event.pull_request.head.ref || github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
-    branches: [main, "fix/**"]
+    branches: [main, "fix/**", "feat/**"]
   pull_request:
     branches: [main]
 
