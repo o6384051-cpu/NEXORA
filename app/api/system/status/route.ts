@@ -11,12 +11,17 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "سجّل الدخول أولاً." }, { status: 401 });
   }
 
-  const provider = process.env.AI_PROVIDER || "openai";
+  const configuredProvider = process.env.AI_PROVIDER || "openai";
+  const provider = configuredProvider === "openai" || configuredProvider === "google" || configuredProvider === "anthropic"
+    ? configuredProvider
+    : "unknown";
   const aiKey = provider === "google"
     ? Boolean(process.env.GOOGLE_API_KEY)
     : provider === "anthropic"
       ? Boolean(process.env.ANTHROPIC_API_KEY)
-      : Boolean(process.env.OPENAI_API_KEY);
+      : provider === "openai"
+        ? Boolean(process.env.OPENAI_API_KEY)
+        : false;
 
   const checks: Check[] = [
     { id: "admin", label: "دخول المسؤول والجلسات", configured: Boolean(process.env.NEXORA_ADMIN_PASSWORD && process.env.NEXORA_SESSION_SECRET), required: true, detail: "كلمة مرور المسؤول ومفتاح توقيع الجلسة" },
