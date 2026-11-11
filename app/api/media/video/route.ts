@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 export const runtime="nodejs";
 export async function POST(request:Request) {
+ const actionSecret=process.env.NEXORA_ACTION_SECRET;
+ if(!actionSecret || request.headers.get("authorization")!=="Bearer "+actionSecret) return NextResponse.json({error:"يتطلب إنشاء الفيديو جلسة مستخدم موثقة."},{status:401});
  const token=process.env.REPLICATE_API_TOKEN, model=process.env.REPLICATE_VIDEO_MODEL;
  if(!token || !model) return NextResponse.json({error:"إنشاء الفيديو يحتاج REPLICATE_API_TOKEN وREPLICATE_VIDEO_MODEL، وهما غير مضبوطين بعد."},{status:503});
  const body=await request.json().catch(()=>({})) as {prompt?:unknown;input?:Record<string,unknown>};
