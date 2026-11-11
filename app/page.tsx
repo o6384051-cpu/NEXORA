@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
   Activity, BrainCircuit, Code2, Files, Mic2, Network, Search,
@@ -46,10 +47,10 @@ export default function Home() {
   return (
     <main className="shell">
       <header className="topbar">
-        <a className="brand" href="/" aria-label="NEXORA AI">
+        <Link className="brand" href="/" aria-label="NEXORA AI">
           <span className="brand-mark"><Sparkles size={19} /></span>
           NEXORA<span className="brand-ai">AI</span>
-        </a>
+        </Link>
         <div className="top-actions">
           <span className="status"><i /> مرحلة التأسيس</span>
           <span className="avatar" aria-label="NEXORA">N</span>
