@@ -3,6 +3,7 @@ import { isAuthorized } from "@/lib/auth";
 import { generateText } from "@/lib/ai/providers";
 export const runtime="nodejs";
 export async function POST(request:Request){
+ if(!(await isAuthorized(request))) return NextResponse.json({error:"سجّل الدخول أولاً من صفحة المسؤول."},{status:401});
  const body=await request.json().catch(()=>({})) as {description?:unknown;kind?:string;provider?:string};
  if(typeof body.description!=="string"||!body.description.trim()) return NextResponse.json({error:"صف التطبيق أو الموقع الذي تريد بناءه."},{status:400});
  if(body.description.length>10000) return NextResponse.json({error:"الوصف طويل جداً."},{status:413});
