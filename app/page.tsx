@@ -52,7 +52,7 @@ export default function Home() {
           NEXORA<span className="brand-ai">AI</span>
         </Link>
         <div className="top-actions">
-          <span className="status"><i /> مرحلة التأسيس</span>
+          <Link className="status" href="/workspace">مساحة التنفيذ ←</Link><span className="status"><i /> مرحلة التأسيس</span>
           <span className="avatar" aria-label="NEXORA">N</span>
         </div>
       </header>
