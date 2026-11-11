@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { isAuthorized } from "@/lib/auth";
 import { runAgentTeam } from "@/lib/agents/registry";
 export const runtime="nodejs";
+export const maxDuration=60;
 export async function POST(request:Request) {
  if(!(await isAuthorized(request))) return NextResponse.json({error:"سجّل الدخول أولاً من صفحة المسؤول."},{status:401});
  try {
