@@ -1,121 +1,44 @@
 "use client";
-
 import Link from "next/link";
-import { useState } from "react";
-import {
-  Activity, BrainCircuit, Code2, Files, Mic2, Network, Search,
-  ShieldCheck, Sparkles, Workflow, Send, Loader2
-} from "lucide-react";
-
+import { useEffect, useRef, useState } from "react";
+import { Activity, BrainCircuit, Code2, Files, Globe2, Menu, Mic2, Network, Plus, Search, Send, Settings2, ShieldCheck, Sparkles, Trash2, Workflow, X, Rocket, Bell, Moon, Paperclip, Image as ImageIcon, SlidersHorizontal } from "lucide-react";
+type Message = { role: "user" | "assistant"; content: string };
+type Chat = { id: string; title: string; messages: Message[]; updatedAt: number };
+const STORE_KEY = "nexora-local-chats-v1";
 const modules = [
-  { icon: BrainCircuit, title: "العقل الذكي", desc: "محادثة الذكاء الاصطناعي بعد دخول المسؤول.", href: "/login" },
-  { icon: Network, title: "فريق التحليل", desc: "تخطيط وبحث ومراجعة؛ التنفيذ الآلي الكامل قيد التطوير.", href: "/workspace#agents" },
-  { icon: Search, title: "البحث المباشر", desc: "بحث ويب عند إعداد مفتاح Tavily.", href: "/workspace#search" },
-  { icon: Code2, title: "استوديو المشاريع", desc: "توليد ملفات ثم اختبار البناء داخل بيئة معزولة.", href: "/workspace#builder" },
-  { icon: Files, title: "تحليل الملفات", desc: "تحليل TXT وMD وCSV وJSON حالياً.", href: "/workspace#files" },
-  { icon: Mic2, title: "الصوت", desc: "إدخال صوتي وقراءة صوتية وصوت مباشر عند توافر المفتاح.", href: "/workspace#voice" },
-  { icon: Workflow, title: "المهام المجدولة", desc: "تحتاج مخزن Redis ومشغل Cron؛ التوقيت ليس فورياً.", href: "/workspace#schedules" },
-  { icon: ShieldCheck, title: "حالة الخدمات", desc: "فحص إعدادات الخدمات؛ لا يمثل تدقيقاً أمنياً كاملاً.", href: "/status" },
+ {icon:BrainCircuit,title:"العقل الذكي",detail:"محادثة وتحليل",href:"/workspace#brain"},
+ {icon:Network,title:"الوكيل المستقل",detail:"تنفيذ المهام",href:"/workspace#agents"},
+ {icon:Search,title:"البحث العميق",detail:"جمع المصادر",href:"/workspace#search"},
+ {icon:Code2,title:"استوديو البرمجة",detail:"بناء التطبيقات",href:"/workspace#builder"},
+ {icon:Files,title:"مساحة الملفات",detail:"تحليل المستندات",href:"/workspace#files"},
+ {icon:Mic2,title:"الصوت",detail:"التفاعل الصوتي",href:"/workspace#voice"},
+ {icon:Workflow,title:"الأتمتة",detail:"سير العمل",href:"/workspace#schedules"},
+ {icon:ShieldCheck,title:"مركز الأمان",detail:"حماية الحساب",href:"/status"}
 ];
-
+const makeId = () => Date.now().toString() + "-" + Math.random().toString(36).slice(2);
 export default function Home() {
-  const [prompt, setPrompt] = useState("");
-  const [response, setResponse] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [needsLogin, setNeedsLogin] = useState(false);
-
-  async function handleSend() {
-    const message = prompt.trim();
-    if (!message || isLoading) return;
-    setIsLoading(true);
-    setResponse("");
-    setNeedsLogin(false);
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
-      });
-      const data: { reply?: string; error?: string } = await res.json();
-      if (res.status === 401) setNeedsLogin(true);
-      if (!res.ok) throw new Error(data.error || "تعذر إكمال الطلب.");
-      setResponse(data.reply || "لم يصل رد من مزود الذكاء الاصطناعي.");
-    } catch (error) {
-      setResponse(error instanceof Error ? error.message : "حدث خطأ غير متوقع.");
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  return (
-    <main className="shell">
-      <header className="topbar">
-        <Link className="brand" href="/" aria-label="NEXORA AI">
-          <span className="brand-mark"><Sparkles size={19} /></span>
-          NEXORA<span className="brand-ai">AI</span>
-        </Link>
-        <div className="top-actions">
-          <Link className="status" href="/login">دخول المسؤول</Link><Link className="status" href="/workspace">مساحة التنفيذ ←</Link><span className="status"><i /> مرحلة التأسيس</span>
-          <span className="avatar" aria-label="NEXORA">N</span>
-        </div>
-      </header>
-      <section className="hero">
-        <div className="eyebrow"><span /> NEXT-GENERATION INTELLIGENCE</div>
-        <h1>حوّل أفكارك إلى <em>إنجازات.</em></h1>
-        <p>مساحة عمل ذكية تجمع التفكير والبحث والبرمجة والتنفيذ في مكان واحد.</p>
-        <div className="prompt-box">
-          <textarea
-            aria-label="اكتب مهمتك"
-            placeholder="اكتب ما تريد إنجازه مع NEXORA..."
-            rows={3}
-            maxLength={8000}
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                void handleSend();
-              }
-            }}
-          />
-          <div className="prompt-bottom">
-            <span><Sparkles size={14} /> العقل الذكي</span>
-            <button type="button" onClick={() => void handleSend()} disabled={isLoading || !prompt.trim()}>
-              {isLoading ? <Loader2 size={16} className="spin" /> : <Send size={16} />}
-              {isLoading ? "جاري التفكير..." : "إرسال"}
-            </button>
-          </div>
-        </div>
-        {response && (
-          <div className="response-box" role="status" aria-live="polite">
-            <div className="response-title"><BrainCircuit size={19} /> <strong>رد NEXORA</strong></div>
-            <p>{response}</p>
-            {needsLogin && <p><Link className="status" href="/login">سجّل دخول المسؤول لتفعيل الدردشة</Link></p>}
-          </div>
-        )}
-        <div className="trust-note"><ShieldCheck size={14} /> لا يتم تنفيذ أي إجراء خارجي حساس دون صلاحية وموافقة.</div>
-      </section>
-      <section className="workspace">
-        <div className="section-heading">
-          <div><span className="section-kicker">WORKSPACE</span><h2>مساحة NEXORA</h2></div>
-          <span className="count">08 وحدات ضمن الخطة</span>
-        </div>
-        <div className="module-grid">
-          {modules.map(({ icon: Icon, title, desc, href }, index) => (
-            <Link className="module-card" href={href} key={title} aria-label={title + ": " + desc}>
-              <div className="module-icon"><Icon size={20} /></div>
-              <div className="module-number">0{index + 1}</div>
-              <h3>{title}</h3><p>{desc}</p>
-              <span className="module-state">فتح الوحدة ←</span>
-            </Link>
-          ))}
-        </div>
-      </section>
-      <footer>
-        <span>NEXORA AI</span>
-        <span>ذكاء مسؤول. تنفيذ موثوق.</span>
-        <span><Activity size={13} /> Foundation v0.1.1</span>
-      </footer>
-    </main>
-  );
+ const [chats,setChats]=useState<Chat[]>([]),[activeId,setActiveId]=useState(""),[input,setInput]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState(""),[sidebarOpen,setSidebarOpen]=useState(false),[ready,setReady]=useState(false);
+ const endRef=useRef<HTMLDivElement>(null),active=chats.find(c=>c.id===activeId),messages=active?.messages??[];
+ useEffect(()=>{try{const saved=localStorage.getItem(STORE_KEY);if(saved){const parsed=JSON.parse(saved) as Chat[];if(Array.isArray(parsed)){setChats(parsed);if(parsed[0])setActiveId(parsed[0].id)}}}catch{}setReady(true)},[]);
+ useEffect(()=>{if(ready)localStorage.setItem(STORE_KEY,JSON.stringify(chats))},[chats,ready]);
+ useEffect(()=>{endRef.current?.scrollIntoView({behavior:"smooth",block:"end"})},[messages.length,busy]);
+ function newChat(){const chat:Chat={id:makeId(),title:"محادثة جديدة",messages:[],updatedAt:Date.now()};setChats(old=>[chat,...old]);setActiveId(chat.id);setInput("");setError("");setSidebarOpen(false)}
+ function removeChat(id:string){const next=chats.filter(c=>c.id!==id);setChats(next);if(activeId===id)setActiveId(next[0]?.id??"")}
+ async function sendMessage(){const text=input.trim();if(!text||busy)return;let chat=active;if(!chat){chat={id:makeId(),title:text.slice(0,38),messages:[],updatedAt:Date.now()};setChats(old=>[chat!,...old]);setActiveId(chat.id)}const next=[...chat.messages,{role:"user" as const,content:text}];setChats(old=>old.map(c=>c.id===chat!.id?{...c,title:c.messages.length?c.title:text.slice(0,38),messages:next,updatedAt:Date.now()}:c));setInput("");setBusy(true);setError("");try{const response=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:next})});const data=await response.json() as {reply?:string;error?:string};if(!response.ok)throw new Error(data.error||(response.status===401?"سجّل الدخول أولاً.":"تعذر إكمال الطلب."));setChats(old=>old.map(c=>c.id===chat!.id?{...c,messages:[...next,{role:"assistant",content:data.reply||"لم يصل رد من النموذج."}],updatedAt:Date.now()}:c))}catch(e){setError(e instanceof Error?e.message:"تعذر الاتصال بالخادم.")}finally{setBusy(false)}}
+ return <main className="nexora-app" dir="ltr">
+  {sidebarOpen&&<button className="mobile-scrim" aria-label="إغلاق القائمة" onClick={()=>setSidebarOpen(false)}/>}
+  <aside className={"sidebar "+(sidebarOpen?"sidebar-open":"")} dir="rtl">
+   <div className="side-brand"><span className="logo-mark"><Sparkles size={21}/></span><span>NEXORA <b>AI</b><small>BEYOND INTELLIGENCE</small></span><button className="icon-button mobile-close" onClick={()=>setSidebarOpen(false)} aria-label="إغلاق"><X size={18}/></button></div>
+   <button className="new-chat" onClick={newChat}><Plus size={18}/> محادثة جديدة</button><div className="side-label">المحادثات الأخيرة</div>
+   <div className="chat-list">{chats.map(c=><div key={c.id} className={"chat-row "+(activeId===c.id?"selected":"")}><button className="chat-select" onClick={()=>{setActiveId(c.id);setSidebarOpen(false)}}>{c.title}</button><button className="delete-chat" aria-label="حذف المحادثة" onClick={()=>removeChat(c.id)}><Trash2 size={14}/></button></div>)}{ready&&chats.length===0&&<p className="empty-history">ستظهر محادثاتك هنا</p>}</div>
+   <div className="side-label tools-label">مساحة العمل</div><nav className="tool-nav"><Link href="/workspace#agents"><Network size={16}/> الوكلاء الذكية</Link><Link href="/workspace#builder"><Code2 size={16}/> استوديو البرمجة</Link><Link href="/workspace#search"><Search size={16}/> البحث العميق</Link><Link href="/workspace#files"><Files size={16}/> مساحة الملفات</Link><Link href="/workspace#schedules"><Workflow size={16}/> الأتمتة والمهام</Link><Link href="/status"><ShieldCheck size={16}/> مركز الأمان</Link></nav>
+   <div className="side-bottom"><Link href="/login"><Settings2 size={16}/> الإعدادات</Link><div className="plan-card"><div className="plan-title">الخطة المجانية <Sparkles size={15}/></div><p>ابدأ باستكشاف مساحة NEXORA</p><div className="plan-meter"><i/></div><Link href="/status">تفاصيل الخدمات ←</Link></div><div className="profile"><span className="profile-avatar">N</span><span><b>NEXORA AI</b><small>مساحة العمل الذكية</small></span><ShieldCheck size={16}/></div></div>
+  </aside>
+  <section className="main-panel" dir="rtl">
+   <header className="main-topbar"><div className="topbar-start"><button className="icon-button menu-toggle" onClick={()=>setSidebarOpen(true)} aria-label="فتح القائمة"><Menu size={20}/></button><span className="breadcrumb">NEXORA <span>/</span> <b>مساحة المحادثة</b></span></div><div className="topbar-end"><span className="model-pill"><i/> النظام متصل</span><button className="icon-button top-icon" aria-label="الوضع الليلي"><Moon size={17}/></button><button className="icon-button top-icon" aria-label="الإشعارات"><Bell size={17}/></button><span className="top-avatar">N</span></div></header>
+   <div className="conversation-scroll">{messages.length===0?<div className="welcome"><div className="hero-art"><div className="hero-star"><Sparkles size={48}/></div><div className="hero-wave wave-one"/><div className="hero-wave wave-two"/></div><div className="welcome-eyebrow">مساعدك الذكي لإنجاز المزيد</div><h1>مرحباً بك في <em>NEXORA</em></h1><p>فكرتك هي البداية. تحدث مع NEXORA لتنظيم العمل، تحليل المعلومات، وتحويل المهام إلى خطوات قابلة للتنفيذ.</p><div className="suggestion-grid">{[{icon:Code2,title:"إنشاء تطبيق",text:"صمّم وابنِ موقعاً أو تطبيقاً",prompt:"ساعدني في بناء تطبيق ويب متكامل"},{icon:Search,title:"بحث عميق",text:"اجمع المعلومات وقارن المصادر",prompt:"ابحث عن أفضل الحلول لهذه الفكرة"},{icon:Files,title:"تحليل الملفات",text:"افهم المستندات واستخرج المهم",prompt:"ساعدني في فهم ملف أو مستند"},{icon:Workflow,title:"تخطيط المهام",text:"حوّل هدفك إلى خطة عمل",prompt:"حوّل هدفي إلى خطة تنفيذية"}].map(({icon:Icon,title,text,prompt})=><button key={title} className="suggestion" onClick={()=>setInput(prompt)}><Icon size={20}/><span><b>{title}</b><small>{text}</small></span><span className="suggestion-arrow">↗</span></button>)}</div></div>:<div className="messages">{messages.map((m,i)=><article key={i} className={"message message-"+m.role}><div className="message-avatar">{m.role==="assistant"?<Sparkles size={16}/>:"أنت"}</div><div className="message-body"><div className="message-author">{m.role==="assistant"?"NEXORA AI":"أنت"}</div><div className="message-content">{m.content}</div></div></article>)}{busy&&<article className="message message-assistant"><div className="message-avatar"><Sparkles size={16}/></div><div className="message-body"><div className="message-author">NEXORA AI</div><div className="typing"><i/><i/><i/> يفكر الآن</div></div></article>}<div ref={endRef}/></div>}</div>
+   <div className="composer-wrap">{error&&<div className="chat-error">{error} {error.includes("سجّل الدخول")&&<Link href="/login">تسجيل الدخول</Link>}</div>}<div className="composer"><textarea value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();void sendMessage()}}} placeholder="اكتب رسالتك هنا..." rows={2} maxLength={8000} aria-label="رسالتك"/><div className="composer-footer"><div className="composer-tools"><button aria-label="إرفاق ملف" title="إرفاق ملف (قريباً)" disabled><Paperclip size={18}/></button><button aria-label="إرفاق صورة" title="إرفاق صورة (قريباً)" disabled><ImageIcon size={18}/></button><button aria-label="الأدوات" title="الأدوات (قريباً)" disabled><SlidersHorizontal size={18}/><span>الأدوات</span></button></div><div className="composer-actions"><span className="composer-language"><Globe2 size={13}/> العربية</span><button className="send-button" onClick={()=>void sendMessage()} disabled={!input.trim()||busy}><Send size={17}/><span>إرسال</span></button></div></div></div><p className="disclaimer">قد يخطئ الذكاء الاصطناعي. راجع المعلومات المهمة قبل الاعتماد عليها.</p></div>
+  </section>
+  <aside className="right-rail" dir="rtl"><div className="rail-heading">الوحدات الأساسية <span>✦</span></div><div className="module-grid">{modules.map(({icon:Icon,title,detail,href})=><Link href={href} className="module-card" key={title}><Icon size={25}/><b>{title}</b><small>{detail}</small></Link>)}</div><div className="system-card"><div className="system-title">حالة النظام <i/></div><strong>مساحة العمل جاهزة</strong><div className="system-bars">{Array.from({length:12},(_,i)=><i key={i}/>)}</div><small>مؤشر واجهة المستخدم فقط</small></div><div className="pro-card"><div className="pro-icon"><Rocket size={24}/></div><b>اكتشف إمكانات أكبر</b><p>تعرّف على أدوات NEXORA وخدماتها المتاحة</p><Link href="/status">استكشف المزيد ←</Link></div><div className="rail-foot"><ShieldCheck size={14}/> حماية وخصوصية البيانات</div></aside>
+ </main>;
 }
