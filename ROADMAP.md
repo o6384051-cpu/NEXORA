@@ -1,5 +1,7 @@
 # NEXORA Roadmap
 
+**الحالة التنفيذية المحدثة:** راجع [خارطة الطريق التفصيلية وتدقيق الوظائف](docs/ROADMAP-EXECUTION-STATUS.md). لا تعتبر العلامات أدناه دليلاً على اكتمال التشغيل؛ راجع بوابات القبول والاختبارات.
+
 - [x] Project identity and product boundary
 - [x] Initial Next.js + TypeScript foundation
 - [x] Arabic RTL responsive shell
