@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { isAuthorized } from "@/lib/auth";
 import { generateText } from "@/lib/ai/providers";
 export const runtime = "nodejs";
+// Allow enough time for the provider's bounded 2 x 25-second attempts.
+export const maxDuration = 60;
 type ChatRequest = { message?: unknown; provider?: string };
 export async function POST(request: Request) {
  if(!(await isAuthorized(request))) return NextResponse.json({error:"سجّل الدخول أولاً من صفحة المسؤول."},{status:401});
