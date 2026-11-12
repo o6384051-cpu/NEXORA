@@ -102,6 +102,22 @@ async function providerCheck() {
   throw new Error("قيمة AI_PROVIDER غير معروفة.");
 }
 
+async function replicateModelCheck(modelName: string) {
+  const token = process.env.REPLICATE_API_TOKEN;
+  if (!token) throw new Error("REPLICATE_API_TOKEN غير مضبوط.");
+  const [modelRef, version] = modelName.split(":");
+  const endpoint = version
+    ? "https://api.replicate.com/v1/models/" + modelRef + "/versions/" + version
+    : "https://api.replicate.com/v1/models/" + modelRef;
+  const response = await fetch(endpoint, {
+    headers: { Authorization: "Bearer " + token },
+    signal: AbortSignal.timeout(9000),
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error("Replicate لم يقبل إعداد النموذج (HTTP " + response.status + ").");
+  return "تم التحقق من صلاحية الوصول إلى النموذج دون تشغيل عملية توليد.";
+}
+
 async function runCheck(
   id: string,
   label: string,
