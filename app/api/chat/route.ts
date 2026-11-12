@@ -1,21 +1,42 @@
 import { NextResponse } from "next/server";
 import { isAuthorized } from "@/lib/auth";
 import { generateText } from "@/lib/ai/providers";
+
 export const runtime = "nodejs";
-// Allow enough time for the provider's bounded 2 x 25-second attempts.
 export const maxDuration = 60;
-type ChatRequest = { message?: unknown; provider?: string };
+
+type ChatMessage = { role: "user" | "assistant"; content: string };
+type ChatRequest = { message?: unknown; messages?: unknown; provider?: string };
+
 export async function POST(request: Request) {
- if(!(await isAuthorized(request))) return NextResponse.json({error:"سجّل الدخول أولاً من صفحة المسؤول."},{status:401});
- let body: ChatRequest;
- try { body=(await request.json()) as ChatRequest; } catch { return NextResponse.json({error:"صيغة الطلب غير صحيحة."},{status:400}); }
- if(typeof body.message!=="string"||!body.message.trim()) return NextResponse.json({error:"اكتب رسالة نصية أولاً."},{status:400});
- if(body.message.length>8000) return NextResponse.json({error:"الرسالة طويلة جداً؛ الحد الأقصى 8000 حرف."},{status:413});
- try {
-  const reply=await generateText([
-   {role:"system",content:"أنت مساعد NEXORA AI. أجب باللغة العربية الواضحة ما لم يطلب المستخدم لغة أخرى. لا تدّع تنفيذ إجراءات أو الوصول إلى ملفات أو أنظمة غير متاحة لك."},
-   {role:"user",content:body.message.trim()},
-  ],body.provider);
-  return NextResponse.json({reply});
- } catch(error) { return NextResponse.json({error:error instanceof Error?error.message:"تعذر الاتصال بمزود الذكاء الاصطناعي."},{status:503}); }
+  if (!(await isAuthorized(request))) {
+    return NextResponse.json({ error: "سجّل الدخول أولاً من صفحة المسؤول." }, { status: 401 });
+  }
+
+  let body: ChatRequest;
+  try { body = (await request.json()) as ChatRequest; }
+  catch { return NextResponse.json({ error: "صيغة الطلب غير صحيحة." }, { status: 400 }); }
+
+  const messages: ChatMessage[] = Array.isArray(body.messages)
+    ? body.messages as ChatMessage[]
+    : typeof body.message === "string" ? [{ role: "user", content: body.message }] : [];
+
+  if (!messages.length || messages.length > 40 || messages.some((m) =>
+    !m || !["user", "assistant"].includes(m.role) || typeof m.content !== "string" || !m.content.trim() || m.content.length > 8000
+  )) {
+    return NextResponse.json({ error: "سجل المحادثة غير صالح أو تجاوز الحد المسموح." }, { status: 400 });
+  }
+  if (messages.reduce((sum, m) => sum + m.content.length, 0) > 30000) {
+    return NextResponse.json({ error: "المحادثة طويلة جداً؛ ابدأ محادثة جديدة." }, { status: 413 });
+  }
+
+  try {
+    const reply = await generateText([
+      { role: "system", content: "أنت NEXORA AI، مساعد ذكي محترف. أجب باللغة العربية الواضحة ما لم يطلب المستخدم لغة أخرى. حافظ على سياق المحادثة. لا تدّع تنفيذ إجراءات أو الوصول إلى ملفات أو أنظمة غير متاحة لك. إذا طلب المستخدم إجراءً خارجياً، وضّح ما تستطيع فعله فعلياً." },
+      ...messages,
+    ], body.provider);
+    return NextResponse.json({ reply });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "تعذر الاتصال بمزود الذكاء الاصطناعي." }, { status: 503 });
+  }
 }
