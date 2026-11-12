@@ -13,7 +13,8 @@ export function getProviderConfig(providerValue?: string): ProviderConfig {
   return { provider, model: process.env.OPENAI_MODEL || "gpt-4o-mini", apiKey: process.env.OPENAI_API_KEY || "" };
 }
 
-async function requestWithRetry(url: string, init: RequestInit, options: { timeoutMs?: number; maxAttempts?: number } = {}): Promise<Response> {\n  const timeoutMs = options.timeoutMs ?? 25000;\n  const maxAttempts = options.maxAttempts ?? 2;
+async function requestWithRetry(url: string, init: RequestInit, options: { timeoutMs?: number; maxAttempts?: number } = {}): Promise<Response> {
+  const timeoutMs = options.timeoutMs ?? 25000;\n  const maxAttempts = options.maxAttempts ?? 2;
   let lastError: unknown;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     // Give each attempt its own timeout; a timed-out first attempt must not poison the retry.
