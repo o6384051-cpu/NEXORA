@@ -85,7 +85,7 @@ export async function generateText(messages: Array<{ role: "system" | "user" | "
   const response = await requestWithRetry(endpoint, {
     method: "POST",
     headers: { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: config.model, messages, temperature: 0.3 }),
+    body: JSON.stringify({ model: config.model, messages, ...(config.provider === "openai" ? { temperature: 0.3 } : {}) }),
   }, requestOptions);
   const data = await readProviderResponse(response, config.provider, config.apiKey);
   const content = data.choices?.[0]?.message?.content;
