@@ -51,53 +51,55 @@ async function githubInstallationCheck() {
 
 async function providerCheck() {
   const provider = process.env.AI_PROVIDER || "openai";
+  const model = provider === "google"
+    ? process.env.GOOGLE_MODEL || "gemini-3.8-flash"
+    : provider === "anthropic"
+      ? process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5"
+      : process.env.OPENAI_MODEL || "gpt-4o-mini";
+
   if (provider === "google") {
     const key = process.env.GOOGLE_API_KEY;
     if (!key) throw new Error("GOOGLE_API_KEY غير مضبوط.");
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models?key=" + encodeURIComponent(key), {
-      signal: AbortSignal.timeout(9000), cache: "no-store",
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
+      body: JSON.stringify({ model, messages: [{ role: "user", content: "Reply with exactly OK." }], max_tokens: 8 }),
+      signal: AbortSignal.timeout(15000), cache: "no-store",
     });
-    if (!response.ok) throw new Error("Google رفض المفتاح أو الطلب (HTTP " + response.status + ").");
-    const data = await response.json() as { models?: unknown[] };
-    return "Google Gemini قبل المفتاح؛ النماذج المتاحة في القائمة: " + (data.models?.length ?? 0) + ". لم يتم استهلاك طلب توليد.";
+    const data = await response.json().catch(() => ({})) as { choices?: Array<{ message?: { content?: string } }>; error?: { message?: string } };
+    if (!response.ok) throw new Error("فشل اختبار توليد Gemini (HTTP " + response.status + "): " + (data.error?.message || "خطأ غير محدد"));
+    if (!data.choices?.[0]?.message?.content?.trim()) throw new Error("اتصل Gemini لكنه لم يُرجع نصاً.");
+    return "نجح طلب توليد فعلي باستخدام " + model + ". استهلك الاختبار عدداً قليلاً من الرموز.";
   }
   if (provider === "anthropic") {
     const key = process.env.ANTHROPIC_API_KEY;
     if (!key) throw new Error("ANTHROPIC_API_KEY غير مضبوط.");
-    const response = await fetch("https://api.anthropic.com/v1/models?limit=1", {
-      headers: { "x-api-key": key, "anthropic-version": "2023-06-01" },
-      signal: AbortSignal.timeout(9000), cache: "no-store",
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({ model, max_tokens: 8, messages: [{ role: "user", content: "Reply with exactly OK." }] }),
+      signal: AbortSignal.timeout(15000), cache: "no-store",
     });
-    if (!response.ok) throw new Error("Anthropic رفض المفتاح أو الطلب (HTTP " + response.status + ").");
-    return "Anthropic قبل المفتاح في واجهة النماذج. لم يتم استهلاك طلب توليد.";
+    const data = await response.json().catch(() => ({})) as { content?: Array<{ text?: string }>; error?: { message?: string } };
+    if (!response.ok) throw new Error("فشل اختبار توليد Anthropic (HTTP " + response.status + "): " + (data.error?.message || "خطأ غير محدد"));
+    if (!data.content?.some((part) => part.text?.trim())) throw new Error("اتصل Anthropic لكنه لم يُرجع نصاً.");
+    return "نجح طلب توليد فعلي باستخدام " + model + ". استهلك الاختبار عدداً قليلاً من الرموز.";
   }
   if (provider === "openai") {
     const key = process.env.OPENAI_API_KEY;
     if (!key) throw new Error("OPENAI_API_KEY غير مضبوط.");
-    const response = await fetch("https://api.openai.com/v1/models", {
-      headers: { Authorization: "Bearer " + key },
-      signal: AbortSignal.timeout(9000), cache: "no-store",
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
+      body: JSON.stringify({ model, messages: [{ role: "user", content: "Reply with exactly OK." }], max_tokens: 8 }),
+      signal: AbortSignal.timeout(15000), cache: "no-store",
     });
-    if (!response.ok) throw new Error("OpenAI رفض المفتاح أو الطلب (HTTP " + response.status + ").");
-    return "OpenAI قبل المفتاح في واجهة النماذج. لم يتم استهلاك طلب توليد.";
+    const data = await response.json().catch(() => ({})) as { choices?: Array<{ message?: { content?: string } }>; error?: { message?: string } };
+    if (!response.ok) throw new Error("فشل اختبار توليد OpenAI (HTTP " + response.status + "): " + (data.error?.message || "خطأ غير محدد"));
+    if (!data.choices?.[0]?.message?.content?.trim()) throw new Error("اتصل OpenAI لكنه لم يُرجع نصاً.");
+    return "نجح طلب توليد فعلي باستخدام " + model + ". استهلك الاختبار عدداً قليلاً من الرموز.";
   }
   throw new Error("قيمة AI_PROVIDER غير معروفة.");
-}
-
-async function replicateModelCheck(modelName: string) {
-  const token = process.env.REPLICATE_API_TOKEN;
-  if (!token) throw new Error("REPLICATE_API_TOKEN غير مضبوط.");
-  const [modelRef, version] = modelName.split(":");
-  const endpoint = version
-    ? "https://api.replicate.com/v1/models/" + modelRef + "/versions/" + version
-    : "https://api.replicate.com/v1/models/" + modelRef;
-  const response = await fetch(endpoint, {
-    headers: { Authorization: "Bearer " + token },
-    signal: AbortSignal.timeout(9000),
-    cache: "no-store",
-  });
-  if (!response.ok) throw new Error("Replicate لم يقبل إعداد النموذج (HTTP " + response.status + ").");
-  return "تم التحقق من صلاحية الوصول إلى النموذج دون تشغيل عملية توليد.";
 }
 
 async function runCheck(
@@ -199,6 +201,6 @@ export async function POST(request: Request) {
     checks,
     summary: { passed, failed, notConfigured: checks.filter((item) => item.status === "not_configured").length, configOnly: checks.filter((item) => item.status === "config_only").length },
     generatedAt: new Date().toISOString(),
-    note: "اختبارات اتصال وبيانات اعتماد فقط. لم يتم إنشاء صور أو فيديو أو نشر تطبيق. اختبار Tavily يستهلك رصيد استعلام واحد. لا يثبت نجاح الاتصال وحده اكتمال تدفق المستخدم.",
+    note: "اختبار الذكاء الاصطناعي ينفذ طلب توليد قصيراً ويستهلك رموزاً قليلة؛ اختبار Tavily يستهلك رصيد استعلام واحد. لا يتم إنشاء صور أو فيديو أو نشر تطبيق. لا يثبت نجاح الاتصال وحده اكتمال تدفق المستخدم.",
   }, { headers: { "Cache-Control": "no-store, max-age=0" } });
 }
