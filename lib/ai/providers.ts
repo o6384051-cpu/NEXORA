@@ -13,14 +13,16 @@ export function getProviderConfig(providerValue?: string): ProviderConfig {
   return { provider, model: process.env.OPENAI_MODEL || "gpt-4o-mini", apiKey: process.env.OPENAI_API_KEY || "" };
 }
 
-async function requestWithRetry(url: string, init: RequestInit): Promise<Response> {
+async function requestWithRetry(url: string, init: RequestInit, options: { timeoutMs?: number; maxAttempts?: number } = {}): Promise<Response> {
+  const timeoutMs = options.timeoutMs ?? 25000;
+  const maxAttempts = options.maxAttempts ?? 2;
   let lastError: unknown;
-  for (let attempt = 0; attempt < 2; attempt++) {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
     // Give each attempt its own timeout; a timed-out first attempt must not poison the retry.
-    const signal = AbortSignal.timeout(25000);
+    const signal = AbortSignal.timeout(timeoutMs);
     try {
       const response = await fetch(url, { ...init, signal, cache: "no-store" });
-      if (attempt === 0 && response.status >= 500) {
+      if (attempt < maxAttempts - 1 && response.status >= 500) {
         await response.body?.cancel().catch(() => undefined);
         await new Promise((resolve) => setTimeout(resolve, 350));
         continue;
@@ -28,16 +30,16 @@ async function requestWithRetry(url: string, init: RequestInit): Promise<Respons
       return response;
     } catch (error) {
       lastError = error;
-      if (attempt === 0) {
+      if (attempt < maxAttempts - 1) {
         await new Promise((resolve) => setTimeout(resolve, 350));
         continue;
       }
     }
   }
   if (lastError instanceof Error && (lastError.name === "TimeoutError" || lastError.name === "AbortError")) {
-    throw new Error("انتهت مهلة الاتصال بمزود الذكاء الاصطناعي بعد محاولتين (25 ثانية لكل محاولة).");
+    throw new Error(`انتهت مهلة الاتصال بمزود الذكاء الاصطناعي بعد ${maxAttempts} محاولة/محاولات (${timeoutMs / 1000} ثانية للمحاولة).`);
   }
-  throw new Error("تعذر الاتصال بمزود الذكاء الاصطناعي بعد محاولتين.");
+  throw new Error(`تعذر الاتصال بمزود الذكاء الاصطناعي بعد ${maxAttempts} محاولة/محاولات.`);
 }
 
 async function readProviderResponse(response: Response, provider: ProviderName, apiKey: string) {
@@ -56,7 +58,7 @@ async function readProviderResponse(response: Response, provider: ProviderName, 
   return data;
 }
 
-export async function generateText(messages: Array<{ role: "system" | "user" | "assistant"; content: string }>, providerValue?: string) {
+export async function generateText(messages: Array<{ role: "system" | "user" | "assistant"; content: string }>, providerValue?: string, requestOptions: { timeoutMs?: number; maxAttempts?: number } = {}) {
   const config = getProviderConfig(providerValue);
   if (!config.apiKey) throw new Error(`لم يتم إعداد مفتاح مزود ${config.provider} على الخادم.`);
 
@@ -70,7 +72,7 @@ export async function generateText(messages: Array<{ role: "system" | "user" | "
         system: messages.find((message) => message.role === "system")?.content,
         messages: messages.filter((message) => message.role !== "system").map((message) => ({ role: message.role, content: message.content })),
       }),
-    });
+    }, requestOptions);
     const data = await readProviderResponse(response, config.provider, config.apiKey);
     const text = data.content?.map((part) => part.text || "").join("") || "";
     if (!text.trim()) throw new Error("أعاد مزود Anthropic استجابة فارغة.");
@@ -84,7 +86,7 @@ export async function generateText(messages: Array<{ role: "system" | "user" | "
     method: "POST",
     headers: { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({ model: config.model, messages, temperature: 0.3 }),
-  });
+  }, requestOptions);
   const data = await readProviderResponse(response, config.provider, config.apiKey);
   const content = data.choices?.[0]?.message?.content;
   if (typeof content !== "string" || !content.trim()) {

@@ -16,7 +16,7 @@ async function runStep(
   provider?: string,
 ): Promise<StepResult> {
   try {
-    const text = await generateText(messages, provider);
+    const text = await generateText(messages, provider, { timeoutMs: 16000, maxAttempts: 1 });
     return { text, status: "completed" };
   } catch (error) {
     const message = error instanceof Error ? error.message : "تعذر إكمال هذه المرحلة.";
@@ -55,25 +55,27 @@ export async function runAgentTeam(task: string, provider?: string) {
     ], provider),
     researchWeb(task),
   ]);
-  const research = await runStep([
-    { role: "system", content: agentRoles[1].instruction + " لا تختلق أي مصدر أو معلومة. إذا كانت النتائج غير كافية فقل ذلك صراحة." },
-    { role: "user", content: task + "\nخطة التخطيط:\n" + plan.text + "\nملخص محرك البحث:\n" + webResearch.answer + "\nالمصادر والنتائج:\n" + webResearch.sources.map((source, index) => "[" + index + "] " + source.title + " | " + source.url + "\n" + source.content).join("\n\n") },
-  ], provider);
+  const [research, engineering] = await Promise.all([
+    runStep([
+      { role: "system", content: agentRoles[1].instruction + " لا تختلق أي مصدر أو معلومة. إذا كانت النتائج غير كافية فقل ذلك صراحة." },
+      { role: "user", content: task + "\nخطة التخطيط:\n" + plan.text + "\nملخص محرك البحث:\n" + webResearch.answer + "\nالمصادر والنتائج:\n" + webResearch.sources.map((source, index) => "[" + index + "] " + source.title + " | " + source.url + "\n" + source.content).join("\n\n") },
+    ], provider),
+    runStep([
+      { role: "system", content: agentRoles[2].instruction },
+      { role: "user", content: task + "\nالخطة:\n" + plan.text },
+    ], provider),
+  ]);
 
-  const engineering = await runStep([
-    { role: "system", content: agentRoles[2].instruction },
-    { role: "user", content: task + "\nالخطة:\n" + plan.text + "\nملاحظات البحث:\n" + research.text },
-  ], provider);
-
-  const review = await runStep([
-    { role: "system", content: agentRoles[3].instruction },
-    { role: "user", content: "راجع المخرجات التالية للمهمة: " + task + "\n" + engineering.text },
-  ], provider);
-
-  const operator = await runStep([
-    { role: "system", content: agentRoles[4].instruction + " لا تدّع إنشاء ملفات أو تعديل GitHub أو نشر تطبيق. هذه المرحلة تنفذ التحليل والتوصيات فقط." },
-    { role: "user", content: "المهمة: " + task + "\nالخطة: " + plan.text + "\nالمخرجات الهندسية: " + engineering.text + "\nالمراجعة: " + review.text },
-  ], provider);
+  const [review, operator] = await Promise.all([
+    runStep([
+      { role: "system", content: agentRoles[3].instruction },
+      { role: "user", content: "راجع المخرجات التالية للمهمة: " + task + "\n" + engineering.text + "\nنتائج البحث:\n" + research.text },
+    ], provider),
+    runStep([
+      { role: "system", content: agentRoles[4].instruction + " لا تدّع إنشاء ملفات أو تعديل GitHub أو نشر تطبيق. هذه المرحلة تنفذ التحليل والتوصيات فقط." },
+      { role: "user", content: "المهمة: " + task + "\nالخطة: " + plan.text + "\nالمخرجات الهندسية: " + engineering.text },
+    ], provider),
+  ]);
 
   const stepResults = { planner: plan, researcher: research, engineer: engineering, reviewer: review, operator };
   const agentStatuses = agentRoles.map((agent) => {
@@ -97,6 +99,6 @@ export async function runAgentTeam(task: string, provider?: string) {
     searchError: webResearch.error,
     searchSources: webResearch.sources,
     executionStatus: failed === 0 ? "analysis_completed" : "partially_completed",
-    executionNote: "هذه الجولة تنفذ التخطيط والبحث والتحليل والمراجعة النصية فقط. لم يتم تشغيل أوامر نظام، أو اختبار ملفات، أو تعديل GitHub، أو نشر تطبيق.",
+    executionNote: "هذه الجولة تنفذ التخطيط والبحث والتحليل والمراجعة النصية فقط. تم تشغيل الأدوار في موجات متوازية لتقليل المهلة. لم يتم تشغيل أوامر نظام، أو اختبار ملفات، أو تعديل GitHub، أو نشر تطبيق.",
   };
 }
