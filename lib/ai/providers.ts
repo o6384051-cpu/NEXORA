@@ -8,15 +8,16 @@ export function getProviderConfig(providerValue?: string): ProviderConfig {
     throw new Error("مزود الذكاء الاصطناعي غير معروف. اختر OpenAI أو Google أو Anthropic.");
   }
   const provider = requested as ProviderName;
-  if (provider === "google") return { provider, model: process.env.GOOGLE_MODEL || "gemini-3.8-flash", apiKey: process.env.GOOGLE_API_KEY || "" };
+  if (provider === "google") return { provider, model: process.env.GOOGLE_MODEL || "gemini-2.5-flash", apiKey: process.env.GOOGLE_API_KEY || "" };
   if (provider === "anthropic") return { provider, model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5", apiKey: process.env.ANTHROPIC_API_KEY || "" };
   return { provider, model: process.env.OPENAI_MODEL || "gpt-4o-mini", apiKey: process.env.OPENAI_API_KEY || "" };
 }
 
 async function requestWithRetry(url: string, init: RequestInit): Promise<Response> {
   let lastError: unknown;
-  const signal = AbortSignal.timeout(9000);
   for (let attempt = 0; attempt < 2; attempt++) {
+    // Give each attempt its own timeout; a timed-out first attempt must not poison the retry.
+    const signal = AbortSignal.timeout(25000);
     try {
       const response = await fetch(url, { ...init, signal, cache: "no-store" });
       if (attempt === 0 && (response.status === 429 || response.status >= 500)) {
@@ -27,14 +28,14 @@ async function requestWithRetry(url: string, init: RequestInit): Promise<Respons
       return response;
     } catch (error) {
       lastError = error;
-      if (attempt === 0 && !signal.aborted) {
+      if (attempt === 0) {
         await new Promise((resolve) => setTimeout(resolve, 350));
         continue;
       }
     }
   }
-  if (lastError instanceof Error && (lastError.name === "TimeoutError" || signal.aborted)) {
-    throw new Error("انتهت مهلة الاتصال بمزود الذكاء الاصطناعي.");
+  if (lastError instanceof Error && (lastError.name === "TimeoutError" || lastError.name === "AbortError")) {
+    throw new Error("انتهت مهلة الاتصال بمزود الذكاء الاصطناعي بعد محاولتين (25 ثانية لكل محاولة).");
   }
   throw new Error("تعذر الاتصال بمزود الذكاء الاصطناعي بعد محاولتين.");
 }
