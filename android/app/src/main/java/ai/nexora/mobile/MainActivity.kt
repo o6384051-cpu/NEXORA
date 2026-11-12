@@ -26,6 +26,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -67,7 +68,8 @@ private fun NexoraApp() {
                     onValueChange = { password = it },
                     label = { Text("كلمة مرور المسؤول") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation()
                 )
                 Button(
                     onClick = {
