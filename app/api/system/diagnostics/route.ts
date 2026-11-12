@@ -84,6 +84,22 @@ async function providerCheck() {
   throw new Error("قيمة AI_PROVIDER غير معروفة.");
 }
 
+async function replicateModelCheck(modelName: string) {
+  const token = process.env.REPLICATE_API_TOKEN;
+  if (!token) throw new Error("REPLICATE_API_TOKEN غير مضبوط.");
+  const [modelRef, version] = modelName.split(":");
+  const endpoint = version
+    ? "https://api.replicate.com/v1/models/" + modelRef + "/versions/" + version
+    : "https://api.replicate.com/v1/models/" + modelRef;
+  const response = await fetch(endpoint, {
+    headers: { Authorization: "Bearer " + token },
+    signal: AbortSignal.timeout(9000),
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error("Replicate لم يقبل إعداد النموذج (HTTP " + response.status + ").");
+  return "تم التحقق من صلاحية الوصول إلى النموذج دون تشغيل عملية توليد.";
+}
+
 async function runCheck(
   id: string,
   label: string,
@@ -138,6 +154,10 @@ export async function POST(request: Request) {
       if (!response.ok) throw new Error("Replicate رفض الرمز (HTTP " + response.status + ").");
       return "نجح التحقق من حساب Replicate دون إنشاء صورة أو فيديو.";
     }),
+    runCheck("image-model", "نموذج توليد الصور", Boolean(process.env.REPLICATE_API_TOKEN), () =>
+      replicateModelCheck(process.env.REPLICATE_IMAGE_MODEL || "black-forest-labs/flux-schnell")),
+    runCheck("video-model", "نموذج توليد الفيديو", Boolean(process.env.REPLICATE_API_TOKEN && process.env.REPLICATE_VIDEO_MODEL), () =>
+      replicateModelCheck(process.env.REPLICATE_VIDEO_MODEL!)),
     runCheck("scheduler", "قاعدة المهام Upstash Redis", Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN), async () => {
       const response = await fetch(process.env.UPSTASH_REDIS_REST_URL!, {
         method: "POST",
