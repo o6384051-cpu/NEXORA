@@ -14,7 +14,8 @@ export function getProviderConfig(providerValue?: string): ProviderConfig {
 }
 
 async function requestWithRetry(url: string, init: RequestInit, options: { timeoutMs?: number; maxAttempts?: number } = {}): Promise<Response> {
-  const timeoutMs = options.timeoutMs ?? 25000;\n  const maxAttempts = options.maxAttempts ?? 2;
+  const timeoutMs = options.timeoutMs ?? 25000;
+  const maxAttempts = options.maxAttempts ?? 2;
   let lastError: unknown;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     // Give each attempt its own timeout; a timed-out first attempt must not poison the retry.
