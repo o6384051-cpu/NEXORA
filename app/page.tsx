@@ -8,14 +8,14 @@ import {
 } from "lucide-react";
 
 const modules = [
-  { icon: BrainCircuit, title: "العقل الذكي", desc: "محادثة وتحليل وفهم السياق والمهام." },
-  { icon: Network, title: "الوكيل المستقل", desc: "تخطيط خطوات العمل واستخدام الأدوات بصلاحيات واضحة." },
-  { icon: Search, title: "البحث العميق", desc: "جمع المعلومات وتنظيم النتائج والمصادر." },
-  { icon: Code2, title: "استوديو البرمجة", desc: "إنشاء المشاريع وفحص الأكواد واختبارها." },
-  { icon: Files, title: "مساحة الملفات", desc: "قراءة المستندات وتنظيم مخرجات العمل." },
-  { icon: Mic2, title: "الصوت", desc: "المحادثة الصوتية ضمن مراحل التطوير." },
-  { icon: Workflow, title: "الأتمتة", desc: "سير عمل قابل للتكرار والمراقبة." },
-  { icon: ShieldCheck, title: "مركز الأمان", desc: "إدارة الصلاحيات وحماية البيانات." },
+  { icon: BrainCircuit, title: "العقل الذكي", desc: "محادثة الذكاء الاصطناعي بعد دخول المسؤول.", href: "/login" },
+  { icon: Network, title: "فريق التحليل", desc: "تخطيط وبحث ومراجعة؛ التنفيذ الآلي الكامل قيد التطوير.", href: "/workspace#agents" },
+  { icon: Search, title: "البحث المباشر", desc: "بحث ويب عند إعداد مفتاح Tavily.", href: "/workspace#search" },
+  { icon: Code2, title: "استوديو المشاريع", desc: "توليد ملفات ثم اختبار البناء داخل بيئة معزولة.", href: "/workspace#builder" },
+  { icon: Files, title: "تحليل الملفات", desc: "تحليل TXT وMD وCSV وJSON حالياً.", href: "/workspace#files" },
+  { icon: Mic2, title: "الصوت", desc: "إدخال صوتي وقراءة صوتية وصوت مباشر عند توافر المفتاح.", href: "/workspace#voice" },
+  { icon: Workflow, title: "المهام المجدولة", desc: "تحتاج مخزن Redis ومشغل Cron؛ التوقيت ليس فورياً.", href: "/workspace#schedules" },
+  { icon: ShieldCheck, title: "حالة الخدمات", desc: "فحص إعدادات الخدمات؛ لا يمثل تدقيقاً أمنياً كاملاً.", href: "/status" },
 ];
 
 export default function Home() {
@@ -101,13 +101,13 @@ export default function Home() {
           <span className="count">08 وحدات ضمن الخطة</span>
         </div>
         <div className="module-grid">
-          {modules.map(({ icon: Icon, title, desc }, index) => (
-            <article className="module-card" key={title}>
+          {modules.map(({ icon: Icon, title, desc, href }, index) => (
+            <Link className="module-card" href={href} key={title} aria-label={title + ": " + desc}>
               <div className="module-icon"><Icon size={20} /></div>
               <div className="module-number">0{index + 1}</div>
               <h3>{title}</h3><p>{desc}</p>
-              <span className="module-state">ضمن خارطة التطوير</span>
-            </article>
+              <span className="module-state">فتح الوحدة ←</span>
+            </Link>
           ))}
         </div>
       </section>
