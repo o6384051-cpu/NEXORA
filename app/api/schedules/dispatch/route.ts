@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { runAgentTeam } from "@/lib/agents/registry";\nimport { getAgentSettings, getEnabledAgentIds } from "@/lib/agent-settings";
+import { runAgentTeam } from "@/lib/agents/registry";
+import { getAgentSettings, getEnabledAgentIds } from "@/lib/agent-settings";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
