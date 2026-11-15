@@ -6,7 +6,8 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
-type ChatRequest = { message?: unknown; messages?: unknown; provider?: string };
+type ChatRequest = { message?: unknown; messages?: unknown; provider?: unknown };
+const PROVIDERS = new Set(["openai", "google", "anthropic"]);
 
 export async function POST(request: Request) {
   if (!(await isAuthorized(request))) {
@@ -16,6 +17,10 @@ export async function POST(request: Request) {
   let body: ChatRequest;
   try { body = (await request.json()) as ChatRequest; }
   catch { return NextResponse.json({ error: "صيغة الطلب غير صحيحة." }, { status: 400 }); }
+
+  if (body.provider !== undefined && (typeof body.provider !== "string" || !PROVIDERS.has(body.provider))) {
+    return NextResponse.json({ error: "مزود الذكاء الاصطناعي المحدد غير مدعوم." }, { status: 400 });
+  }
 
   const messages: ChatMessage[] = Array.isArray(body.messages)
     ? body.messages as ChatMessage[]
@@ -34,7 +39,7 @@ export async function POST(request: Request) {
     const reply = await generateText([
       { role: "system", content: "أنت NEXORA AI، مساعد ذكي محترف. أجب باللغة العربية الواضحة ما لم يطلب المستخدم لغة أخرى. حافظ على سياق المحادثة. لا تدّع تنفيذ إجراءات أو الوصول إلى ملفات أو أنظمة غير متاحة لك. إذا طلب المستخدم إجراءً خارجياً، وضّح ما تستطيع فعله فعلياً." },
       ...messages,
-    ], body.provider);
+    ], body.provider as string | undefined);
     return NextResponse.json({ reply });
   } catch (error) {
     if (error instanceof ProviderHttpError) {
