@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAuthorized } from "@/lib/auth";
-import { generateText } from "@/lib/ai/providers";
+import { generateText, ProviderHttpError } from "@/lib/ai/providers";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -37,6 +37,11 @@ export async function POST(request: Request) {
     ], body.provider);
     return NextResponse.json({ reply });
   } catch (error) {
+    if (error instanceof ProviderHttpError) {
+      const headers = error.retryAfterSeconds ? { "Retry-After": String(error.retryAfterSeconds) } : undefined;
+      const status = error.status === 429 ? 429 : error.status >= 500 ? 502 : 503;
+      return NextResponse.json({ error: error.message, retryAfterSeconds: error.retryAfterSeconds }, { status, headers });
+    }
     return NextResponse.json({ error: error instanceof Error ? error.message : "تعذر الاتصال بمزود الذكاء الاصطناعي." }, { status: 503 });
   }
 }
