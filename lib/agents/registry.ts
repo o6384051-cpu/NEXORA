@@ -29,7 +29,7 @@ type StepResult = { text: string; status: "completed" | "failed" | "skipped"; er
 async function runStep(
   messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
   provider?: string,
-  timeoutMs = 16000,
+  timeoutMs = 10000,
 ): Promise<StepResult> {
   try {
     const text = await generateText(messages, provider, { timeoutMs, maxAttempts: 1 });
@@ -100,7 +100,7 @@ async function collectIndependentVote(
       role: "user",
       content: "المهمة الأصلية:\n" + task.slice(0, 5000) + "\n\nالمقترح المطلوب تقييمه:\n" + proposal.slice(0, 10000),
     },
-  ], provider, 7000);
+  ], provider, 5000);
   const parsed = result.status === "completed"
     ? parseAgentVote(result.text)
     : { vote: "abstain" as const, reason: "تعذر الحصول على تصويت من هذا الوكيل." };
@@ -204,7 +204,7 @@ export async function runAgentTeam(
       ].join("\n"),
     },
     { role: "user", content: "طلب المستخدم:\n" + task.slice(0, 7000) + "\n\nالمواد المتاحة للتركيب في إجابة واحدة:\n" + proposalForReview.slice(0, 16000) + "\n\nنتيجة المراجعة الداخلية: " + consensusStatus },
-  ], provider, 14000);
+  ], provider, 9000);
 
   const fallback = [operator, engineering, research, plan, review].find((item) => item.status === "completed");
   const summary = synthesis.status === "completed"
