@@ -74,9 +74,11 @@ async function readProviderResponse(response: Response, provider: ProviderName, 
       .replace(/sk-[A-Za-z0-9_-]{12,}/g, "[مفتاح مخفي]")
       .slice(0, 500);
     const message = response.status === 429
-      ? /quota|daily|resource_exhausted/i.test(upstreamMessage)
-        ? "وصل Gemini إلى حد الحصة المتاحة لهذا المشروع. انتظر تجدد الحصة أو راجع حدود الاستخدام في Google AI Studio."
-        : "طلبات Gemini كثيرة حالياً. انتظر قليلاً ثم أعد المحاولة."
+      ? provider === "google"
+        ? /quota|daily|resource_exhausted/i.test(upstreamMessage)
+          ? "وصل Gemini إلى حد الحصة المتاحة لهذا المشروع. انتظر تجدد الحصة أو راجع حدود الاستخدام في Google AI Studio."
+          : "طلبات Gemini كثيرة حالياً. انتظر قليلاً ثم أعد المحاولة."
+        : `وصل مزود ${provider} إلى حد الطلبات المسموح. انتظر قليلاً ثم أعد المحاولة.`
       : `فشل مزود ${provider} (HTTP ${response.status}): ${upstreamMessage}`;
     throw new ProviderHttpError(message, response.status, getRetryAfterSeconds(response));
   }
