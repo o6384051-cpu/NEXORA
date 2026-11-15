@@ -33,7 +33,8 @@ export async function GET(request: Request) {
 
     const processed: Array<{ id: string; status: string; searchStatus: string }> = [];
     for (const entry of due) {
-      const settings = await getAgentSettings();\n      const result = await runAgentTeam(entry.item.task, undefined, getEnabledAgentIds(settings.settings));
+      const settings = await getAgentSettings();
+      const result = await runAgentTeam(entry.item.task, undefined, getEnabledAgentIds(settings.settings));
       await command(["LREM", "nexora:schedules", "1", entry.raw]);
       const status = result.executionStatus === "analysis_completed" ? "analysis_completed" : "partially_completed";
       const history = {
