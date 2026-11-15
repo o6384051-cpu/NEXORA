@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof ProviderHttpError) {
       const headers = error.retryAfterSeconds ? { "Retry-After": String(error.retryAfterSeconds) } : undefined;
-      const status = error.status === 429 ? 429 : error.status >= 500 ? 502 : 503;
+      const status = error.status === 429 ? 429 : 502;
       return NextResponse.json({ error: error.message, retryAfterSeconds: error.retryAfterSeconds }, { status, headers });
     }
     return NextResponse.json({ error: error instanceof Error ? error.message : "تعذر الاتصال بمزود الذكاء الاصطناعي." }, { status: 503 });
