@@ -119,6 +119,7 @@ export async function generateText(messages: Array<{ role: "system" | "user" | "
     body: JSON.stringify({
       model: config.model,
       messages,
+      max_tokens: 2048,
       ...(config.provider === "openai" ? { temperature: 0.3 } : {}),
       ...(config.provider === "google" ? { reasoning_effort: "low" } : {}),
     }),
