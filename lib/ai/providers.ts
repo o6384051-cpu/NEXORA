@@ -12,9 +12,13 @@ export class ProviderHttpError extends Error {
 }
 const PROVIDERS: ProviderName[] = ["openai", "google", "anthropic"];
 
+export function isProviderName(value: unknown): value is ProviderName {
+  return typeof value === "string" && PROVIDERS.includes(value as ProviderName);
+}
+
 export function getProviderConfig(providerValue?: string): ProviderConfig {
   const requested = providerValue || process.env.AI_PROVIDER || "openai";
-  if (!PROVIDERS.includes(requested as ProviderName)) {
+  if (!isProviderName(requested)) {
     throw new Error("مزود الذكاء الاصطناعي غير معروف. اختر OpenAI أو Google أو Anthropic.");
   }
   const provider = requested as ProviderName;
