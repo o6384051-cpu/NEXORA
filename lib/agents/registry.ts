@@ -24,7 +24,7 @@ export const agentRoles = [
 ] as const;
 
 type SearchResult = { title: string; url: string; content: string; score: number };
-type StepResult = { text: string; status: "completed" | "failed"; error?: string };
+type StepResult = { text: string; status: "completed" | "failed" | "skipped"; error?: string };
 
 async function runStep(
   messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
@@ -107,83 +107,116 @@ async function collectIndependentVote(
   return { agentId, agentName: agent.name, ...parsed };
 }
 
-export async function runAgentTeam(task: string, provider?: string) {
+export async function runAgentTeam(
+  task: string,
+  provider?: string,
+  enabledAgentIds: string[] = agentRoles.map((agent) => agent.id),
+) {
+  const enabled = new Set(enabledAgentIds);
+  const skipped = (name: string): StepResult => ({ text: `تم تعطيل ${name} من لوحة الإدارة.`, status: "skipped" });
+  if (enabled.size === 0) {
+    return {
+      summary: "فريق الوكلاء متوقف حالياً. يمكن للمسؤول إعادة تشغيله من لوحة الإدارة.",
+      agents: [],
+      executionStatus: "agents_disabled",
+      executionNote: "لم يتم استدعاء أي وكيل لأن الفريق معطّل.",
+      searchStatus: "disabled",
+      searchSources: [],
+    };
+  }
+
   const [plan, webResearch] = await Promise.all([
-    runStep([
-      { role: "system", content: agentRoles[0].instruction },
-      { role: "user", content: task },
-    ], provider),
-    researchWeb(task),
+    enabled.has("planner")
+      ? runStep([
+          { role: "system", content: agentRoles[0].instruction },
+          { role: "user", content: task },
+        ], provider)
+      : Promise.resolve(skipped("وكيل التخطيط")),
+    enabled.has("researcher")
+      ? researchWeb(task)
+      : Promise.resolve({ answer: "تم تعطيل البحث من لوحة الإدارة.", sources: [] as SearchResult[], status: "not_configured" as const }),
   ]);
+
   const [research, engineering] = await Promise.all([
-    runStep([
-      { role: "system", content: agentRoles[1].instruction + " لا تختلق أي مصدر أو معلومة. إذا كانت النتائج غير كافية فقل ذلك صراحة." },
-      { role: "user", content: task + "\nخطة التخطيط:\n" + plan.text + "\nملخص محرك البحث:\n" + webResearch.answer + "\nالمصادر والنتائج:\n" + webResearch.sources.map((source, index) => "[" + index + "] " + source.title + " | " + source.url + "\n" + source.content).join("\n\n") },
-    ], provider),
-    runStep([
-      { role: "system", content: agentRoles[2].instruction },
-      { role: "user", content: "المهمة المطلوب هندستها بعمق:\n" + task + "\n\nسياق التخطيط والبحث المتاح (يحتاج إلى تحقق):\n" + plan.text + "\n" + webResearch.answer + "\n" + webResearch.sources.map((source) => source.title + " | " + source.url + "\n" + source.content).join("\n\n") },
-    ], provider),
+    enabled.has("researcher")
+      ? runStep([
+          { role: "system", content: agentRoles[1].instruction + " لا تختلق أي مصدر أو معلومة. إذا كانت النتائج غير كافية فقل ذلك صراحة." },
+          { role: "user", content: task + "\nخطة التخطيط:\n" + plan.text + "\nملخص محرك البحث:\n" + webResearch.answer + "\nالمصادر والنتائج:\n" + webResearch.sources.map((source, index) => "[" + index + "] " + source.title + " | " + source.url + "\n" + source.content).join("\n\n") },
+        ], provider)
+      : Promise.resolve(skipped("وكيل البحث")),
+    enabled.has("engineer")
+      ? runStep([
+          { role: "system", content: agentRoles[2].instruction },
+          { role: "user", content: "المهمة المطلوب هندستها بعمق:\n" + task + "\n\nسياق التخطيط والبحث المتاح (يحتاج إلى تحقق):\n" + plan.text + "\n" + webResearch.answer + "\n" + webResearch.sources.map((source) => source.title + " | " + source.url + "\n" + source.content).join("\n\n") },
+        ], provider)
+      : Promise.resolve(skipped("وكيل الهندسة")),
   ]);
 
   const [review, operator] = await Promise.all([
-    runStep([
-      { role: "system", content: agentRoles[3].instruction + " افحص اتساق التصميم الهندسي، قابلية الاختبار، سلامة الترحيل، وخطة التراجع. أشر إلى أي ادعاء غير مدعوم." },
-      { role: "user", content: "راجع المخرجات التالية للمهمة: " + task + "\nالتصميم الهندسي العميق:\n" + engineering.text + "\nنتائج البحث:\n" + research.text },
-    ], provider),
-    runStep([
-      { role: "system", content: agentRoles[4].instruction + " لا تدّع إنشاء ملفات أو تعديل GitHub أو نشر تطبيق. هذه المرحلة تنفذ التحليل والتوصيات فقط." },
-      { role: "user", content: "المهمة: " + task + "\nالخطة: " + plan.text + "\nالمخرجات الهندسية: " + engineering.text },
-    ], provider),
+    enabled.has("reviewer")
+      ? runStep([
+          { role: "system", content: agentRoles[3].instruction + " افحص اتساق التصميم الهندسي، قابلية الاختبار، سلامة الترحيل، وخطة التراجع. أشر إلى أي ادعاء غير مدعوم." },
+          { role: "user", content: "راجع المخرجات التالية للمهمة: " + task + "\nالتصميم الهندسي العميق:\n" + engineering.text + "\nنتائج البحث:\n" + research.text },
+        ], provider)
+      : Promise.resolve(skipped("وكيل المراجعة")),
+    enabled.has("operator")
+      ? runStep([
+          { role: "system", content: agentRoles[4].instruction + " لا تدّع إنشاء ملفات أو تعديل GitHub أو نشر تطبيق. هذه المرحلة تنفذ التحليل والتوصيات فقط." },
+          { role: "user", content: "المهمة: " + task + "\nالخطة: " + plan.text + "\nالمخرجات الهندسية: " + engineering.text },
+        ], provider)
+      : Promise.resolve(skipped("وكيل التنفيذ")),
   ]);
 
   const stepResults = { planner: plan, researcher: research, engineer: engineering, reviewer: review, operator };
   const agentStatuses = agentRoles.map((agent) => {
     const result = stepResults[agent.id as keyof typeof stepResults];
-    if (agent.id === "researcher" && webResearch.status !== "completed") {
-      return { id: agent.id, name: agent.name, status: result.status, searchStatus: webResearch.status };
-    }
     return { id: agent.id, name: agent.name, status: result.status };
   });
   const failed = agentStatuses.filter((agent) => agent.status === "failed").length;
 
   const proposalForReview = [
-    "الخطة:\n" + plan.text,
-    "البحث:\n" + research.text,
-    "التصميم الهندسي:\n" + engineering.text,
-    "مراجعة الجودة:\n" + review.text,
-    "توصيات التنفيذ:\n" + operator.text,
-  ].join("\n\n");
-  const votes = await Promise.all([
-    collectIndependentVote("engineer", task, proposalForReview, provider),
-    collectIndependentVote("reviewer", task, proposalForReview, provider),
-    collectIndependentVote("operator", task, proposalForReview, provider),
-  ]);
+    enabled.has("planner") ? "الخطة:\n" + plan.text : "",
+    enabled.has("researcher") ? "البحث:\n" + research.text : "",
+    enabled.has("engineer") ? "التصميم الهندسي:\n" + engineering.text : "",
+    enabled.has("reviewer") ? "مراجعة الجودة:\n" + review.text : "",
+    enabled.has("operator") ? "توصيات التنفيذ:\n" + operator.text : "",
+  ].filter(Boolean).join("\n\n");
+
+  const voters = (["engineer", "reviewer", "operator"] as const).filter((id) => enabled.has(id));
+  const votes = await Promise.all(voters.map((id) => collectIndependentVote(id, task, proposalForReview, provider)));
   const decisiveVotes = votes.filter((item) => item.vote !== "abstain");
   const agreeVotes = decisiveVotes.filter((item) => item.vote === "agree").length;
-  const quorum = 2;
-  const consensusScore = decisiveVotes.length ? Math.round((agreeVotes / decisiveVotes.length) * 100) : 0;
-  const consensusStatus = decisiveVotes.length < quorum
+  const consensusStatus = decisiveVotes.length < 2
     ? "insufficient_votes"
     : agreeVotes > decisiveVotes.length / 2
       ? "approved"
       : "needs_revision";
 
+  const synthesis = await runStep([
+    {
+      role: "system",
+      content: [
+        "أنت NEXORA، الواجهة الوحيدة التي يتعامل معها المستخدم.",
+        "اكتب إجابة نهائية واحدة متماسكة باللغة العربية، ولا تذكر الوكلاء أو أسماءهم أو أصواتهم أو نقاشاتهم الداخلية.",
+        "ادمج النتائج المفيدة، صحح التناقضات، واذكر القيود أو ما لم يتم تنفيذه بوضوح.",
+        "إذا كانت المراجعة الداخلية ترى أن المقترح يحتاج إلى مراجعة أو أن الأدلة غير كافية، فاذكر التحفظ في الإجابة دون كشف آلية التصويت.",
+        "لا تدّع تنفيذ إجراء خارجي أو اختبار أو نشر لم يحدث فعلياً.",
+      ].join("\n"),
+    },
+    { role: "user", content: "طلب المستخدم:\n" + task.slice(0, 7000) + "\n\nالمواد المتاحة للتركيب في إجابة واحدة:\n" + proposalForReview.slice(0, 16000) + "\n\nنتيجة المراجعة الداخلية: " + consensusStatus },
+  ], provider, 14000);
+
+  const fallback = [operator, engineering, research, plan, review].find((item) => item.status === "completed");
+  const summary = synthesis.status === "completed"
+    ? synthesis.text
+    : fallback?.text || "تعذر إعداد إجابة نهائية لهذه المهمة. حاول مرة أخرى أو فعّل وكيلاً إضافياً من لوحة الإدارة.";
 
   return {
+    summary,
     agents: agentStatuses,
-    agentStatuses,
-    votes,
-    consensus: { status: consensusStatus, score: consensusScore, decisiveVotes: decisiveVotes.length, agreeVotes, quorum, approved: consensusStatus === "approved" },
-    plan: plan.text,
-    research: research.text,
-    engineering: engineering.text,
-    review: review.text,
-    operator: operator.text,
-    searchStatus: webResearch.status,
-    searchError: webResearch.error,
-    searchSources: webResearch.sources,
-    executionStatus: failed === 0 ? "analysis_completed" : "partially_completed",
-    executionNote: "هذه الجولة تنفذ التخطيط والبحث والتصميم الهندسي العميق والمراجعة النصية فقط. تم تشغيل الأدوار في موجات متوازية لتقليل المهلة. لم يتم تشغيل أوامر نظام، أو اختبار ملفات، أو تعديل GitHub، أو نشر تطبيق.",
+    executionStatus: failed === 0 && synthesis.status === "completed" ? "analysis_completed" : "partially_completed",
+    executionNote: "يعرض NEXORA للمستخدم نتيجة واحدة فقط. تبقى المراجعات والتصويتات الداخلية مخفية ولا تُعرض في واجهة المحادثة.",
+    searchStatus: enabled.has("researcher") ? webResearch.status : "disabled",
+    searchSources: enabled.has("researcher") ? webResearch.sources : [],
   };
 }
