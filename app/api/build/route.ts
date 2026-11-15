@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { isAuthorized } from "@/lib/auth";
-import { generateText } from "@/lib/ai/providers";
+import { generateText, isProviderName } from "@/lib/ai/providers";
 export const runtime="nodejs";
 export async function POST(request:Request){
  if(!(await isAuthorized(request))) return NextResponse.json({error:"سجّل الدخول أولاً من صفحة المسؤول."},{status:401});
  const body=await request.json().catch(()=>({})) as {description?:unknown;kind?:string;provider?:string};
  if(typeof body.description!=="string"||!body.description.trim()) return NextResponse.json({error:"صف التطبيق أو الموقع الذي تريد بناءه."},{status:400});
  if(body.description.length>10000) return NextResponse.json({error:"الوصف طويل جداً."},{status:413});
+ if(body.provider !== undefined && !isProviderName(body.provider)) return NextResponse.json({error:"مزود الذكاء الاصطناعي المحدد غير مدعوم."},{status:400});
  const prompt="أنشئ هيكل مشروع أولي قابل للتطوير حسب الوصف التالي. أعد JSON صالحاً فقط بالشكل {name,summary,files:[{path,content}],runInstructions}. اجعل الملفات محدودة ومترابطة، واستخدم ممارسات أمان جيدة، ولا تضع مفاتيح أو أسرار. لا تدّع اختباراً أو نشراً. نوع المشروع: "+(body.kind||"web")+"\nالوصف: "+body.description;
  try{
   const raw=await generateText([{role:"system",content:"أنت مهندس برمجيات يبني نماذج أولية. أخرج JSON فقط دون Markdown."},{role:"user",content:prompt}],body.provider);
