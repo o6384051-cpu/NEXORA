@@ -29,9 +29,10 @@ type StepResult = { text: string; status: "completed" | "failed"; error?: string
 async function runStep(
   messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
   provider?: string,
+  timeoutMs = 16000,
 ): Promise<StepResult> {
   try {
-    const text = await generateText(messages, provider, { timeoutMs: 16000, maxAttempts: 1 });
+    const text = await generateText(messages, provider, { timeoutMs, maxAttempts: 1 });
     return { text, status: "completed" };
   } catch (error) {
     const message = error instanceof Error ? error.message : "تعذر إكمال هذه المرحلة.";
@@ -99,7 +100,7 @@ async function collectIndependentVote(
       role: "user",
       content: "المهمة الأصلية:\n" + task.slice(0, 5000) + "\n\nالمقترح المطلوب تقييمه:\n" + proposal.slice(0, 10000),
     },
-  ], provider);
+  ], provider, 7000);
   const parsed = result.status === "completed"
     ? parseAgentVote(result.text)
     : { vote: "abstain" as const, reason: "تعذر الحصول على تصويت من هذا الوكيل." };
