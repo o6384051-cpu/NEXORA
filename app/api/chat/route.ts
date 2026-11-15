@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
 import { isAuthorized } from "@/lib/auth";
-import { generateText, ProviderHttpError } from "@/lib/ai/providers";
+import { generateText, isProviderName, ProviderHttpError } from "@/lib/ai/providers";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 type ChatRequest = { message?: unknown; messages?: unknown; provider?: unknown };
-const PROVIDERS = new Set(["openai", "google", "anthropic"]);
-
 export async function POST(request: Request) {
   if (!(await isAuthorized(request))) {
     return NextResponse.json({ error: "سجّل الدخول أولاً من صفحة المسؤول." }, { status: 401 });
@@ -18,7 +16,7 @@ export async function POST(request: Request) {
   try { body = (await request.json()) as ChatRequest; }
   catch { return NextResponse.json({ error: "صيغة الطلب غير صحيحة." }, { status: 400 }); }
 
-  if (body.provider !== undefined && (typeof body.provider !== "string" || !PROVIDERS.has(body.provider))) {
+  if (body.provider !== undefined && !isProviderName(body.provider)) {
     return NextResponse.json({ error: "مزود الذكاء الاصطناعي المحدد غير مدعوم." }, { status: 400 });
   }
 
