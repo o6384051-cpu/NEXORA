@@ -17,7 +17,7 @@ export const agentRoles = [
       "للمهام الهندسية أو الصناعية أو المتعلقة بأنظمة مادية، افصل الحسابات والقيود والمواد والمخاطر التشغيلية، ولا تخترع مواصفات أو نتائج اختبار.",
       "أخرج النتيجة بهذا الترتيب: فهم المشكلة والمتطلبات؛ تحليل الوضع والقيود؛ التصميم ومخطط تدفق نصي؛ البدائل وسبب الاختيار؛ المخاطر والأمان؛ خطة التنفيذ؛ الاختبارات ومعايير القبول؛ ما لا يمكن الجزم به.",
       "ميّز دائماً بين التصميم المقترح والعمل المنفذ فعلياً. لا تدّع تعديل ملفات أو تشغيل اختبارات أو نشر خدمة ما لم تؤكد الأدوات ذلك."
-    ].join("\\n")
+    ].join("\n")
   },
   { id: "reviewer", name: "وكيل المراجعة والجودة", instruction: "راجع الخطة والمخرجات واكتشف المخاطر والنواقص." },
   { id: "operator", name: "وكيل التنفيذ", instruction: "حوّل الخطة إلى إجراءات عملية، وحدد بدقة ما نفذته الأدوات وما يحتاج موافقة." },
@@ -77,14 +77,14 @@ export async function runAgentTeam(task: string, provider?: string) {
     ], provider),
     runStep([
       { role: "system", content: agentRoles[2].instruction },
-      { role: "user", content: task + "\nالخطة:\n" + plan.text },
+      { role: "user", content: "المهمة المطلوب هندستها بعمق:\n" + task + "\n\nسياق التخطيط والبحث المتاح (يحتاج إلى تحقق):\n" + plan.text + "\n" + webResearch.answer + "\n" + webResearch.sources.map((source) => source.title + " | " + source.url + "\n" + source.content).join("\n\n") },
     ], provider),
   ]);
 
   const [review, operator] = await Promise.all([
     runStep([
       { role: "system", content: agentRoles[3].instruction + " افحص اتساق التصميم الهندسي، قابلية الاختبار، سلامة الترحيل، وخطة التراجع. أشر إلى أي ادعاء غير مدعوم." },
-      { role: "user", content: "راجع المخرجات التالية للمهمة: " + task + "\n" + engineering.text + "\nنتائج البحث:\n" + research.text },
+      { role: "user", content: "راجع المخرجات التالية للمهمة: " + task + "\nالتصميم الهندسي العميق:\n" + engineering.text + "\nنتائج البحث:\n" + research.text },
     ], provider),
     runStep([
       { role: "system", content: agentRoles[4].instruction + " لا تدّع إنشاء ملفات أو تعديل GitHub أو نشر تطبيق. هذه المرحلة تنفذ التحليل والتوصيات فقط." },
