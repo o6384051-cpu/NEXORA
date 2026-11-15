@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import { isAuthorized } from "@/lib/auth";
-import { generateText } from "@/lib/ai/providers";
+import { generateText, isProviderName, ProviderHttpError } from "@/lib/ai/providers";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
-type ChatRequest = { message?: unknown; messages?: unknown; provider?: string };
-
+type ChatRequest = { message?: unknown; messages?: unknown; provider?: unknown };
 export async function POST(request: Request) {
   if (!(await isAuthorized(request))) {
     return NextResponse.json({ error: "سجّل الدخول أولاً من صفحة المسؤول." }, { status: 401 });
@@ -16,6 +15,10 @@ export async function POST(request: Request) {
   let body: ChatRequest;
   try { body = (await request.json()) as ChatRequest; }
   catch { return NextResponse.json({ error: "صيغة الطلب غير صحيحة." }, { status: 400 }); }
+
+  if (body.provider !== undefined && !isProviderName(body.provider)) {
+    return NextResponse.json({ error: "مزود الذكاء الاصطناعي المحدد غير مدعوم." }, { status: 400 });
+  }
 
   const messages: ChatMessage[] = Array.isArray(body.messages)
     ? body.messages as ChatMessage[]
@@ -34,9 +37,14 @@ export async function POST(request: Request) {
     const reply = await generateText([
       { role: "system", content: "أنت NEXORA AI، مساعد ذكي محترف. أجب باللغة العربية الواضحة ما لم يطلب المستخدم لغة أخرى. حافظ على سياق المحادثة. لا تدّع تنفيذ إجراءات أو الوصول إلى ملفات أو أنظمة غير متاحة لك. إذا طلب المستخدم إجراءً خارجياً، وضّح ما تستطيع فعله فعلياً." },
       ...messages,
-    ], body.provider);
+    ], body.provider as string | undefined);
     return NextResponse.json({ reply });
   } catch (error) {
+    if (error instanceof ProviderHttpError) {
+      const headers = error.retryAfterSeconds ? { "Retry-After": String(error.retryAfterSeconds) } : undefined;
+      const status = error.status === 429 ? 429 : 502;
+      return NextResponse.json({ error: error.message, retryAfterSeconds: error.retryAfterSeconds }, { status, headers });
+    }
     return NextResponse.json({ error: error instanceof Error ? error.message : "تعذر الاتصال بمزود الذكاء الاصطناعي." }, { status: 503 });
   }
 }
