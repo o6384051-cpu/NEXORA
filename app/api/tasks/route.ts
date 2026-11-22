@@ -23,7 +23,7 @@ export async function GET(request: Request) {
       if (typeof raw !== "string") return NextResponse.json({ error: "المهمة غير موجودة." }, { status: 404 });
       return NextResponse.json({ task: JSON.parse(raw) as TaskRecord });
     }
-    const ids = await redis(["LRANGE", QUEUE, "0", "49"]) as string[];
+    const [pending, processing, history] = await Promise.all([redis(["LRANGE", QUEUE, "0", "49"]), redis(["LRANGE", "nexora:tasks:processing", "0", "49"]), redis(["LRANGE", "nexora:tasks:history", "0", "49"])]);\n    const ids = [...new Set([...(pending as string[] || []), ...(processing as string[] || []), ...(history as string[] || [])])].slice(0, 50);
     const tasks = await Promise.all((ids || []).map(async (id) => {
       const raw = await redis(["GET", PREFIX + id]);
       if (typeof raw !== "string") return null;
