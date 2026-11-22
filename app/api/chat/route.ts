@@ -66,7 +66,7 @@ export async function POST(request: Request) {
       { role: "system", content: "أنت NEXORA AI، مساعد ذكي محترف. أجب باللغة العربية الواضحة ما لم يطلب المستخدم لغة أخرى. حافظ على سياق المحادثة. لا تدّع تنفيذ إجراءات أو الوصول إلى ملفات أو أنظمة غير متاحة لك. إذا طلب المستخدم إجراءً خارجياً، وضّح ما تستطيع فعله فعلياً." + memoryContext },
       ...messages,
     ], body.provider as string | undefined);
-    const memorySaved = explicitSave ? await saveExplicitMemory(lastUser.replace(/^(?:تذكر|احفظ|افتكر|خزن|سجّل في الذاكرة|remember|save this|store this)[:：\\s]*/i, "").trim()) : false;
+    const memorySaved = explicitSave ? await saveExplicitMemory(lastUser.replace(/^(?:تذكر|احفظ|افتكر|خزن|سجّل في الذاكرة|remember|save this|store this)[:：\s]*/i, "").trim()) : false;
     return NextResponse.json({ reply, ...(explicitSave ? { memorySaved } : {}) });
   } catch (error) {
     if (error instanceof ProviderHttpError) {
