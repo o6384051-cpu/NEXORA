@@ -12,7 +12,7 @@ async function redis(args: unknown[]) {
   if (!response.ok || data.error) throw new Error(data.error || "تعذر الوصول إلى طابور المهام.");
   return data.result;
 }
-type TaskRecord = { id: string; task: string; status: "queued" | "running" | "completed" | "partially_completed" | "failed" | "cancelled"; attempts: number; maxAttempts: number; createdAt: string; updatedAt: string; startedAt?: string; completedAt?: string; result?: unknown; error?: string };
+type TaskRecord = { id: string; task: string; status: "queued" | "running" | "analysis_completed" | "partially_completed" | "failed" | "cancelled"; attempts: number; maxAttempts: number; createdAt: string; updatedAt: string; startedAt?: string; completedAt?: string; result?: unknown; error?: string };
 export async function GET(request: Request) {
   if (!(await isAuthorized(request))) return NextResponse.json({ error: "غير مصرح." }, { status: 401 });
   try {
@@ -43,6 +43,6 @@ export async function POST(request: Request) {
     const item: TaskRecord = { id, task: body.task.trim(), status: "queued", attempts: 0, maxAttempts: 3, createdAt: now, updatedAt: now };
     await redis(["SET", PREFIX + id, JSON.stringify(item)]);
     await redis(["LPUSH", QUEUE, id]);
-    return NextResponse.json({ task: item, message: "حُفظت المهمة في الطابور وستُنفذ عند تشغيل العامل." }, { status: 202 });
+    return NextResponse.json({ task: item, message: "حُفظت المهمة في الطابور؛ سيحللها الفريق عند تشغيل العامل. هذه المرحلة لا تنفذ إجراءات خارجية تلقائياً." }, { status: 202 });
   } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "تعذر حفظ المهمة." }, { status: 503 }); }
 }
