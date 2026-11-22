@@ -115,9 +115,9 @@ export async function runAgentTeam(
   const enabled = new Set(enabledAgentIds);
   // Route agents based on task intent to reduce unnecessary provider calls.
   const taskLower = task.toLowerCase();
-  const wantsResearch = /\\b(search|research|latest|news|today|current|web|source|compare|price|market|trend)\\b|ابحث|بحث|مصادر|آخر|حديث|اليوم|سعر|السوق|مقارنة|أخبار/.test(taskLower);
-  const wantsEngineering = /\\b(code|coding|build|app|website|deploy|api|database|architecture|debug|test|security|github|vercel|render)\\b|برمج|كود|تطبيق|موقع|نشر|قاعدة بيانات|بنية|اختبار|أمان|خطأ|تطوير/.test(taskLower);
-  const highRisk = /\\b(security|production|deploy|database|payment|delete|migration|credential|secret)\\b|أمان|حذف|نشر|إنتاج|قاعدة بيانات|دفع|كلمة مرور|مفتاح/.test(taskLower);
+  const wantsResearch = /\b(search|research|latest|news|today|current|web|source|compare|price|market|trend)\b|ابحث|بحث|مصادر|آخر|حديث|اليوم|سعر|السوق|مقارنة|أخبار/.test(taskLower);
+  const wantsEngineering = /\b(code|coding|build|app|website|deploy|api|database|architecture|debug|test|security|github|vercel|render)\b|برمج|كود|تطبيق|موقع|نشر|قاعدة بيانات|بنية|اختبار|أمان|خطأ|تطوير/.test(taskLower);
+  const highRisk = /\b(security|production|deploy|database|payment|delete|migration|credential|secret)\b|أمان|حذف|نشر|إنتاج|قاعدة بيانات|دفع|كلمة مرور|مفتاح/.test(taskLower);
   if (!wantsResearch) enabled.delete("researcher");
   if (!wantsEngineering) enabled.delete("engineer");
   if (!highRisk) enabled.delete("reviewer");
@@ -216,7 +216,7 @@ export async function runAgentTeam(
     summary,
     agents: agentStatuses,
     executionStatus: failed === 0 && synthesis.status === "completed" ? "analysis_completed" : "partially_completed",
-    executionNote: "يعرض NEXORA للمستخدم نتيجة واحدة فقط. تبقى المراجعات والتصويتات الداخلية مخفية ولا تُعرض في واجهة المحادثة.",
+    executionNote: "يعرض NEXORA للمستخدم نتيجة واحدة فقط. تبقى مخرجات الفريق الداخلية مخفية ولا تُعرض في واجهة المحادثة.",
     searchStatus: enabled.has("researcher") ? webResearch.status : "disabled",
     searchSources: enabled.has("researcher") ? webResearch.sources : [],
   };
