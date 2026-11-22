@@ -16,6 +16,13 @@ type TaskRecord = { id: string; task: string; status: "queued" | "running" | "co
 export async function GET(request: Request) {
   if (!(await isAuthorized(request))) return NextResponse.json({ error: "غير مصرح." }, { status: 401 });
   try {
+    const requestedId = new URL(request.url).searchParams.get("id");
+    if (requestedId) {
+      if (!/^[0-9a-f-]{36}$/i.test(requestedId)) return NextResponse.json({ error: "معرّف المهمة غير صالح." }, { status: 400 });
+      const raw = await redis(["GET", PREFIX + requestedId]);
+      if (typeof raw !== "string") return NextResponse.json({ error: "المهمة غير موجودة." }, { status: 404 });
+      return NextResponse.json({ task: JSON.parse(raw) as TaskRecord });
+    }
     const ids = await redis(["LRANGE", QUEUE, "0", "49"]) as string[];
     const tasks = await Promise.all((ids || []).map(async (id) => {
       const raw = await redis(["GET", PREFIX + id]);
