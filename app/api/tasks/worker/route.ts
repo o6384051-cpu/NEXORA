@@ -22,12 +22,31 @@ export async function GET(request: Request) {
       const raw = await redis(["GET", PREFIX + id]);
       if (typeof raw !== "string") { await redis(["LREM", PROCESSING, "1", id]); continue; }
       const item = JSON.parse(raw) as TaskRecord;
-      const stale = item.status !== "running" || !item.startedAt || Date.now() - Date.parse(item.startedAt) > 5 * 60_000;
-      if (stale) {
-        item.status = "queued"; item.updatedAt = new Date().toISOString(); item.error = "تمت استعادة المهمة بعد انقطاع العامل.";
-        await redis(["SET", PREFIX + id, JSON.stringify(item)]);
+      const terminal = ["analysis_completed", "partially_completed", "failed", "cancelled"].includes(item.status);
+      if (terminal) {
         await redis(["LREM", PROCESSING, "1", id]);
-        await redis(["LPUSH", PENDING, id]);
+        await redis(["LPUSH", "nexora:tasks:history", id]);
+        continue;
+      }
+      // A just-moved queue item may briefly still say "queued". Do not recover it
+      // immediately: another worker may be in the middle of claiming it.
+      const activityAt = item.status === "running" ? item.startedAt : item.updatedAt;
+      const activityTime = activityAt ? Date.parse(activityAt) : Date.parse(item.createdAt);
+      const stale = Number.isFinite(activityTime) && Date.now() - activityTime > 5 * 60_000;
+      if (stale) {
+        item.updatedAt = new Date().toISOString();
+        item.error = "تمت استعادة المهمة بعد انقطاع العامل.";
+        await redis(["LREM", PROCESSING, "1", id]);
+        if ((item.attempts || 0) >= (item.maxAttempts || 3)) {
+          item.status = "failed";
+          item.completedAt = item.updatedAt;
+          await redis(["SET", PREFIX + id, JSON.stringify(item)]);
+          await redis(["LPUSH", "nexora:tasks:history", id]);
+        } else {
+          item.status = "queued";
+          await redis(["SET", PREFIX + id, JSON.stringify(item)]);
+          await redis(["LPUSH", PENDING, id]);
+        }
       }
     }
     const id = await redis(["RPOPLPUSH", PENDING, PROCESSING]) as string | null;
@@ -35,7 +54,7 @@ export async function GET(request: Request) {
     const raw = await redis(["GET", PREFIX + id]);
     if (typeof raw !== "string") { await redis(["LREM", PROCESSING, "1", id]); return NextResponse.json({ processed: false, error: "سجل المهمة غير موجود." }, { status: 404 }); }
     const item = JSON.parse(raw) as TaskRecord;
-    if (["completed", "partially_completed", "cancelled", "failed"].includes(item.status)) {
+    if (["analysis_completed", "partially_completed", "cancelled", "failed"].includes(item.status)) {
       await redis(["LREM", PROCESSING, "1", id]);
       return NextResponse.json({ processed: false, message: "تم تجاهل مهمة نهائية." });
     }
@@ -44,7 +63,7 @@ export async function GET(request: Request) {
     try {
       const settings = await getAgentSettings();
       const result = await runAgentTeam(item.task, undefined, getEnabledAgentIds(settings.settings));
-      item.result = result; item.status = result.executionStatus === "analysis_completed" ? "completed" : "partially_completed";
+      item.result = result; item.status = result.executionStatus === "analysis_completed" ? "analysis_completed" : "partially_completed";
       item.completedAt = new Date().toISOString(); item.updatedAt = item.completedAt; delete item.error;
       await redis(["SET", PREFIX + id, JSON.stringify(item)]);
       await redis(["LREM", PROCESSING, "1", id]);
