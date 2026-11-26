@@ -1,4 +1,5 @@
 import { generateText } from "@/lib/ai/providers";
+import { AGENT_COLLABORATION_RULES, createAgentMessage, renderAgentHandoff } from "@/lib/agents/communication";
 
 export const agentRoles = [
   { id: "planner", name: "وكيل التخطيط", instruction: "حلل الهدف وقسمه إلى مراحل مرتبة ومخرجات قابلة للتحقق." },
@@ -32,7 +33,8 @@ async function runStep(
   timeoutMs = 10000,
 ): Promise<StepResult> {
   try {
-    const text = await generateText(messages, provider, { timeoutMs, maxAttempts: 1 });
+    const coordinatedMessages = messages.map((message, index) => index === 0 && message.role === "system" ? { ...message, content: message.content + "\n\n" + AGENT_COLLABORATION_RULES } : message);
+    const text = await generateText(coordinatedMessages, provider, { timeoutMs, maxAttempts: 1 });
     return { text, status: "completed" };
   } catch (error) {
     const message = error instanceof Error ? error.message : "تعذر إكمال هذه المرحلة.";
@@ -145,32 +147,31 @@ export async function runAgentTeam(
       : Promise.resolve({ answer: "تم تعطيل البحث من لوحة الإدارة.", sources: [] as SearchResult[], status: "not_configured" as const }),
   ]);
 
-  const [research, engineering] = await Promise.all([
-    enabled.has("researcher")
-      ? runStep([
-          { role: "system", content: agentRoles[1].instruction + " لا تختلق أي مصدر أو معلومة. إذا كانت النتائج غير كافية فقل ذلك صراحة." },
-          { role: "user", content: task + "\nخطة التخطيط:\n" + plan.text + "\nملخص محرك البحث:\n" + webResearch.answer + "\nالمصادر والنتائج:\n" + webResearch.sources.map((source, index) => "[" + index + "] " + source.title + " | " + source.url + "\n" + source.content).join("\n\n") },
-        ], provider)
-      : Promise.resolve(skipped("وكيل البحث")),
-    enabled.has("engineer")
-      ? runStep([
-          { role: "system", content: agentRoles[2].instruction },
-          { role: "user", content: "المهمة المطلوب هندستها بعمق:\n" + task + "\n\nسياق التخطيط والبحث المتاح (يحتاج إلى تحقق):\n" + plan.text + "\n" + webResearch.answer + "\n" + webResearch.sources.map((source) => source.title + " | " + source.url + "\n" + source.content).join("\n\n") },
-        ], provider)
-      : Promise.resolve(skipped("وكيل الهندسة")),
-  ]);
+  const research = enabled.has("researcher")
+    ? await runStep([
+        { role: "system", content: agentRoles[1].instruction + " لا تختلق أي مصدر أو معلومة. إذا كانت النتائج غير كافية فقل ذلك صراحة." },
+        { role: "user", content: task + "\nتسليم التخطيط:\n" + renderAgentHandoff(createAgentMessage({ from: "planner", kind: "plan", summary: plan.text, content: plan.text })) + "\nملخص محرك البحث:\n" + webResearch.answer + "\nالمصادر والنتائج:\n" + webResearch.sources.map((source, index) => "[" + index + "] " + source.title + " | " + source.url + "\n" + source.content).join("\n\n") },
+      ], provider)
+    : skipped("وكيل البحث");
+
+  const engineering = enabled.has("engineer")
+    ? await runStep([
+        { role: "system", content: agentRoles[2].instruction },
+        { role: "user", content: "المهمة المطلوب هندستها بعمق:\n" + task + "\n\nتسليم التخطيط:\n" + renderAgentHandoff(createAgentMessage({ from: "planner", kind: "plan", summary: plan.text, content: plan.text })) + "\n\nتسليم البحث والأدلة:\n" + renderAgentHandoff(createAgentMessage({ from: "researcher", kind: "evidence", summary: research.text, content: research.text, limitations: webResearch.status === "completed" ? [] : ["البحث الحي لم يكتمل أو لم يكن مضبوطاً"] })) + "\n\nالمصادر الخارجية المتاحة:\n" + webResearch.sources.map((source) => source.title + " | " + source.url + "\n" + source.content).join("\n\n") },
+      ], provider)
+    : skipped("وكيل الهندسة");
 
   const [review, operator] = await Promise.all([
     enabled.has("reviewer")
       ? runStep([
           { role: "system", content: agentRoles[3].instruction + " افحص اتساق التصميم الهندسي، قابلية الاختبار، سلامة الترحيل، وخطة التراجع. أشر إلى أي ادعاء غير مدعوم." },
-          { role: "user", content: "راجع المخرجات التالية للمهمة: " + task + "\nالتصميم الهندسي العميق:\n" + engineering.text + "\nنتائج البحث:\n" + research.text },
+          { role: "user", content: "راجع المخرجات التالية للمهمة: " + task + "\nتسليم التصميم الهندسي:\n" + renderAgentHandoff(createAgentMessage({ from: "engineer", kind: "design", summary: engineering.text, content: engineering.text })) + "\nتسليم البحث:\n" + renderAgentHandoff(createAgentMessage({ from: "researcher", kind: "evidence", summary: research.text, content: research.text })) },
         ], provider)
       : Promise.resolve(skipped("وكيل المراجعة")),
     enabled.has("operator")
       ? runStep([
           { role: "system", content: agentRoles[4].instruction + " لا تدّع إنشاء ملفات أو تعديل GitHub أو نشر تطبيق. هذه المرحلة تنفذ التحليل والتوصيات فقط." },
-          { role: "user", content: "المهمة: " + task + "\nالخطة: " + plan.text + "\nالمخرجات الهندسية: " + engineering.text },
+          { role: "user", content: "المهمة: " + task + "\nتسليم الخطة: " + renderAgentHandoff(createAgentMessage({ from: "planner", kind: "plan", summary: plan.text, content: plan.text })) + "\nتسليم التصميم: " + renderAgentHandoff(createAgentMessage({ from: "engineer", kind: "design", summary: engineering.text, content: engineering.text })) },
         ], provider)
       : Promise.resolve(skipped("وكيل التنفيذ")),
   ]);
