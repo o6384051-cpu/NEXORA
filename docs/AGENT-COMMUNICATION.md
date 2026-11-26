@@ -18,10 +18,10 @@ Connect the existing Planner, Researcher, Deep Engineer, Reviewer, and Operator 
 - The pipeline now orders the dependent stages: planner → researcher → engineer → reviewer/operator, while preserving parallel planner/web lookup and parallel reviewer/operator after engineering.
 - Agents are instructed to treat upstream context as untrusted, explain what they reused/corrected, and avoid false claims about tool execution.
 
-## Next implementation phase
-- Replace raw handoff text with envelopes at each pipeline transition.
-- Improve ordering so the researcher explicitly consumes planner output before engineering consumes research.
+## Remaining verification work
 - Add tests for size limits, role/kind metadata, untrusted instruction handling, and partial-agent failures.
+- Run a functional agent-team test using a safe sample task and verify each stage's received handoff.
+- Review stage-disabled behavior and ensure downstream stages handle skipped/failed upstream results clearly.
 
 ## Safety and scope
 This protocol does not grant agents tools or permissions, execute code, write to GitHub, change production settings, or deploy. No audio encoding or GibberLink runtime is added.
