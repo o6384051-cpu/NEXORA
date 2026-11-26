@@ -1,4 +1,5 @@
 import { generateText } from "@/lib/ai/providers";
+import { AGENT_COLLABORATION_RULES } from "@/lib/agents/communication";
 
 export const agentRoles = [
   { id: "planner", name: "وكيل التخطيط", instruction: "حلل الهدف وقسمه إلى مراحل مرتبة ومخرجات قابلة للتحقق." },
@@ -32,7 +33,8 @@ async function runStep(
   timeoutMs = 10000,
 ): Promise<StepResult> {
   try {
-    const text = await generateText(messages, provider, { timeoutMs, maxAttempts: 1 });
+    const coordinatedMessages = messages.map((message, index) => index === 0 && message.role === "system" ? { ...message, content: message.content + "\n\n" + AGENT_COLLABORATION_RULES } : message);
+    const text = await generateText(coordinatedMessages, provider, { timeoutMs, maxAttempts: 1 });
     return { text, status: "completed" };
   } catch (error) {
     const message = error instanceof Error ? error.message : "تعذر إكمال هذه المرحلة.";
