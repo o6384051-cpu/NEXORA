@@ -14,7 +14,9 @@ Connect the existing Planner, Researcher, Deep Engineer, Reviewer, and Operator 
 ## Implemented in this change
 - A typed, bounded handoff message and formatter.
 - Collaboration safety rules added to each agent's system instructions via the shared runStep wrapper.
-- Existing pipeline already passes planning and research outputs as context; agents are now instructed to treat that context as untrusted, explain what they reused/corrected, and avoid false claims about tool execution.
+- The researcher consumes a bounded planner handoff; the engineer consumes bounded planner and researcher handoffs; reviewer and operator receive bounded engineering/research or plan/design handoffs.
+- The pipeline now orders the dependent stages: planner → researcher → engineer → reviewer/operator, while preserving parallel planner/web lookup and parallel reviewer/operator after engineering.
+- Agents are instructed to treat upstream context as untrusted, explain what they reused/corrected, and avoid false claims about tool execution.
 
 ## Next implementation phase
 - Replace raw handoff text with envelopes at each pipeline transition.
