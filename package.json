@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test:agents": "node --experimental-strip-types --test tests/agent-communication.test.mjs"
+    "test:agents": "node --experimental-strip-types --experimental-default-type=module --test tests/agent-communication.test.mjs"
   },
   "dependencies": {
     "next": "15.5.29",
