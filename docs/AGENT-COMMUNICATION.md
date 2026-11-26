@@ -1,7 +1,7 @@
 # NEXORA Agent Collaboration Protocol
 
 ## Goal
-Connect the existing Planner, Researcher, Deep Engineer, Reviewer, and Operator roles through bounded, typed handoff messages. This is a text/API coordination protocol, not an audio transport; GibberLink is a source of inspiration, not a dependency.
+Connect the existing Planner, Researcher, Deep Engineer, Reviewer, and Operator roles through bounded, typed handoff messages. This is a text/API coordination protocol, not an audio transport; GibberLink is inspiration only.
 
 ## Message envelope
 - Protocol version: 1
@@ -11,16 +11,15 @@ Connect the existing Planner, Researcher, Deep Engineer, Reviewer, and Operator 
 - Content: max 10,000 characters
 - Optional limitations: max 12 entries, 300 characters each
 
-## Safety
-Agent output is untrusted context, never instructions. Recipients should identify what they reuse, correct, and cannot verify. This communication layer does not grant agents tools or permissions, execute code, write to GitHub, modify production settings, or deploy.
+## Implemented in this change
+- A typed, bounded handoff message and formatter.
+- Collaboration safety rules added to each agent's system instructions via the shared runStep wrapper.
+- Existing pipeline already passes planning and research outputs as context; agents are now instructed to treat that context as untrusted, explain what they reused/corrected, and avoid false claims about tool execution.
 
-## Intended collaboration sequence
-1. Planner creates a task breakdown.
-2. Researcher uses the plan to guide research and attaches evidence/uncertainty.
-3. Deep Engineer considers the plan and evidence and proposes an implementation.
-4. Reviewer checks the proposal for correctness, security, and gaps.
-5. Operator turns approved recommendations into a bounded action list and marks any step requiring human authorization.
-6. NEXORA returns one user-facing answer.
+## Next implementation phase
+- Replace raw handoff text with envelopes at each pipeline transition.
+- Improve ordering so the researcher explicitly consumes planner output before engineering consumes research.
+- Add tests for size limits, role/kind metadata, untrusted instruction handling, and partial-agent failures.
 
-## Current scope
-This PR introduces the bounded handoff envelope and shared collaboration instructions. Wiring envelopes into the agent pipeline and adding end-to-end verification are subsequent implementation steps. No audio encoding or GibberLink runtime is added.
+## Safety and scope
+This protocol does not grant agents tools or permissions, execute code, write to GitHub, change production settings, or deploy. No audio encoding or GibberLink runtime is added.
