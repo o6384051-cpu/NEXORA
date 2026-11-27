@@ -16,7 +16,7 @@ test("malformed or invalid votes abstain", () => {
 });
 
 test("approval requires three independent unanimous agrees", () => {
-  const allAgree = Array.from({ length: 3 }, () => ({ vote: "agree" as const, reason: "" }));
+  const allAgree = Array.from({ length: 3 }, () => ({ vote: "agree", reason: "" }));
   assert.equal(summarizeIndependentVotes(allAgree), "approved");
   assert.equal(summarizeIndependentVotes([{ vote: "agree", reason: "" }, { vote: "disagree", reason: "" }, { vote: "agree", reason: "" }]), "review_required");
   assert.equal(summarizeIndependentVotes([{ vote: "agree", reason: "" }, { vote: "agree", reason: "" }]), "review_required");
