@@ -109,7 +109,8 @@ export async function runAgentTeam(
   const wantsEngineering = /\b(code|coding|build|app|website|deploy|api|database|architecture|debug|test|security|github|vercel|render)\b|برمج|كود|تطبيق|موقع|نشر|قاعدة بيانات|بنية|اختبار|أمان|خطأ|تطوير/.test(taskLower);
   const highRisk = /\b(security|production|deploy|database|payment|delete|migration|credential|secret)\b|أمان|حذف|نشر|إنتاج|قاعدة بيانات|دفع|كلمة مرور|مفتاح/.test(taskLower);
   if (!wantsResearch) enabled.delete("researcher");
-  if (!wantsEngineering) enabled.delete("engineer");
+  // High-risk requests must route through engineering even when they do not contain ordinary coding keywords.
+  if (!wantsEngineering && !highRisk) enabled.delete("engineer");
   if (!highRisk) enabled.delete("reviewer");
   const skipped = (name: string): StepResult => ({ text: `تم تعطيل ${name} من لوحة الإدارة أو لم تكن مطلوبة لهذه المهمة.`, status: "skipped" });
   if (enabled.size === 0) {
