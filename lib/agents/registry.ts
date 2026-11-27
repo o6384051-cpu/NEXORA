@@ -1,5 +1,6 @@
 import { generateText } from "@/lib/ai/providers";
 import { AGENT_COLLABORATION_RULES, createAgentMessage, renderAgentHandoff } from "@/lib/agents/communication";
+import { parseAgentVote, summarizeIndependentVotes } from "@/lib/agents/voting";
 
 export const agentRoles = [
   { id: "planner", name: "وكيل التخطيط", instruction: "حلل الهدف وقسمه إلى مراحل مرتبة ومخرجات قابلة للتحقق." },
@@ -67,19 +68,6 @@ async function researchWeb(task: string): Promise<{ answer: string; sources: Sea
 
 type AgentVote = { agentId: string; agentName: string; vote: "agree" | "disagree" | "abstain"; reason: string };
 
-function parseAgentVote(raw: string): { vote: AgentVote["vote"]; reason: string } {
-  const candidate = raw.match(/\{[\s\S]*\}/)?.[0];
-  if (!candidate) return { vote: "abstain", reason: "لم يرجع الوكيل تصويتاً منظماً قابلاً للتحقق." };
-  try {
-    const parsed = JSON.parse(candidate) as { vote?: unknown; reason?: unknown };
-    const vote = parsed.vote === "agree" || parsed.vote === "disagree" ? parsed.vote : "abstain";
-    const reason = typeof parsed.reason === "string" ? parsed.reason.slice(0, 700) : "لم يذكر الوكيل سبباً واضحاً.";
-    return { vote, reason };
-  } catch {
-    return { vote: "abstain", reason: "تعذر قراءة صيغة التصويت." };
-  }
-}
-
 async function collectIndependentVote(
   agentId: "engineer" | "reviewer" | "operator",
   task: string,
@@ -121,7 +109,8 @@ export async function runAgentTeam(
   const wantsEngineering = /\b(code|coding|build|app|website|deploy|api|database|architecture|debug|test|security|github|vercel|render)\b|برمج|كود|تطبيق|موقع|نشر|قاعدة بيانات|بنية|اختبار|أمان|خطأ|تطوير/.test(taskLower);
   const highRisk = /\b(security|production|deploy|database|payment|delete|migration|credential|secret)\b|أمان|حذف|نشر|إنتاج|قاعدة بيانات|دفع|كلمة مرور|مفتاح/.test(taskLower);
   if (!wantsResearch) enabled.delete("researcher");
-  if (!wantsEngineering) enabled.delete("engineer");
+  // High-risk requests must route through engineering even when they do not contain ordinary coding keywords.
+  if (!wantsEngineering && !highRisk) enabled.delete("engineer");
   if (!highRisk) enabled.delete("reviewer");
   const skipped = (name: string): StepResult => ({ text: `تم تعطيل ${name} من لوحة الإدارة أو لم تكن مطلوبة لهذه المهمة.`, status: "skipped" });
   if (enabled.size === 0) {
@@ -191,8 +180,12 @@ export async function runAgentTeam(
     enabled.has("operator") ? "توصيات التنفيذ:\n" + operator.text : "",
   ].filter(Boolean).join("\n\n");
 
-  // Additional independent votes are only requested for higher-risk technical tasks.
-  const consensusStatus = highRisk && enabled.has("reviewer") && enabled.has("engineer") ? "review_required" : "not_required";
+  // Independent voting is limited to high-risk tasks and only when all three roles are enabled.
+  const voteEligible = highRisk && ["engineer", "reviewer", "operator"].every((id) => enabled.has(id));
+  const votes = voteEligible
+    ? await Promise.all((["engineer", "reviewer", "operator"] as const).map((id) => collectIndependentVote(id, task, proposalForReview, provider)))
+    : [];
+  const consensusStatus = voteEligible ? summarizeIndependentVotes(votes) : "not_required";
 
   const synthesis = await runStep([
     {
@@ -205,7 +198,7 @@ export async function runAgentTeam(
         "لا تدّع تنفيذ إجراء خارجي أو اختبار أو نشر لم يحدث فعلياً.",
       ].join("\n"),
     },
-    { role: "user", content: "طلب المستخدم:\n" + task.slice(0, 7000) + "\n\nالمواد المتاحة للتركيب في إجابة واحدة:\n" + proposalForReview.slice(0, 16000) + "\n\nنتيجة المراجعة الداخلية: " + consensusStatus },
+    { role: "user", content: "طلب المستخدم:\n" + task.slice(0, 7000) + "\n\nالمواد المتاحة للتركيب في إجابة واحدة:\n" + proposalForReview.slice(0, 16000) + "\n\nنتيجة المراجعة والتصويت المستقل (إن اكتمل): " + consensusStatus },
   ], provider, 9000);
 
   const fallback = [operator, engineering, research, plan, review].find((item) => item.status === "completed");
@@ -215,6 +208,7 @@ export async function runAgentTeam(
 
   return {
     summary,
+    consensusStatus,
     agents: agentStatuses,
     executionStatus: failed === 0 && synthesis.status === "completed" ? "analysis_completed" : "partially_completed",
     executionNote: "يعرض NEXORA للمستخدم نتيجة واحدة فقط. تبقى مخرجات الفريق الداخلية مخفية ولا تُعرض في واجهة المحادثة.",
